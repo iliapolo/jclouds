@@ -16,17 +16,9 @@
  */
 package org.jclouds.softlayer.compute;
 
-import static org.jclouds.compute.util.ComputeServiceUtils.getCores;
-import static org.jclouds.compute.util.ComputeServiceUtils.getSpace;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED;
-import static org.testng.Assert.assertEquals;
-
-import java.io.IOException;
-import java.util.Properties;
-import java.util.Set;
-
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.domain.OsFamily;
 import org.jclouds.compute.domain.OsFamilyVersion64Bit;
@@ -36,9 +28,16 @@ import org.jclouds.compute.internal.BaseTemplateBuilderLiveTest;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Properties;
+import java.util.Set;
+
+import static org.jclouds.compute.util.ComputeServiceUtils.getCores;
+import static org.jclouds.compute.util.ComputeServiceUtils.getSpace;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED;
+import static org.testng.Assert.assertEquals;
 
 /**
  * 
@@ -46,6 +45,8 @@ import com.google.common.collect.ImmutableSet;
  */
 @Test(groups = "live")
 public class SoftLayerTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTest {
+
+   public static final int MAX_RAM = 48 * 1024;
 
    public SoftLayerTemplateBuilderLiveTest() {
       provider = "softlayer";
@@ -141,7 +142,7 @@ public class SoftLayerTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTes
 
          Template template = context.getComputeService().templateBuilder().biggest().build();
          assertEquals(getCores(template.getHardware()), 16.0d);
-         assertEquals(template.getHardware().getRam(), 16);
+         assertEquals(template.getHardware().getRam(), MAX_RAM);
          assertEquals(getSpace(template.getHardware()), 100.0d);
          assertEquals(template.getHardware().getVolumes().get(0).getType(), Volume.Type.SAN);
       } finally {
@@ -181,7 +182,7 @@ public class SoftLayerTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTes
          
          Template template = context.getComputeService().templateBuilder().biggest().build();
          assertEquals(getCores(template.getHardware()), 8.0d);
-         assertEquals(template.getHardware().getRam(), 16);
+         assertEquals(template.getHardware().getRam(), MAX_RAM);
          assertEquals(getSpace(template.getHardware()), 100.0d);
          assertEquals(template.getHardware().getVolumes().get(0).getType(), Volume.Type.LOCAL);
       } finally {
@@ -203,14 +204,14 @@ public class SoftLayerTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTes
    public void testBiggestTemplateBuilder() throws IOException {
       Template template = view.getComputeService().templateBuilder().biggest().build();
       assertEquals(getCores(template.getHardware()), 16.0d);
-      assertEquals(template.getHardware().getRam(), 16);
+      assertEquals(template.getHardware().getRam(), MAX_RAM);
       assertEquals(getSpace(template.getHardware()), 100.0d);
       assertEquals(template.getHardware().getVolumes().get(0).getType(), Volume.Type.LOCAL);
    }
 
    @Override
    protected Set<String> getIso3166Codes() {
-      return ImmutableSet.<String> of("SG", "US-CA", "US-TX", "US-VA", "US-WA");
+      return ImmutableSet.<String> of("SG", "US-CA", "US-TX", "US-VA", "US-WA", "NL", "NSFTW-IL");
    }
 
 }
