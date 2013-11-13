@@ -16,13 +16,15 @@
  */
 package org.jclouds.softlayer.features;
 
-import static org.testng.Assert.assertTrue;
+import org.jclouds.softlayer.domain.ProductItem;
+import org.jclouds.softlayer.domain.ProductPackage;
+import org.jclouds.softlayer.domain.VirtualGuest;
+import org.testng.annotations.Test;
 
 import java.util.Set;
 
-import org.jclouds.softlayer.domain.ProductItem;
-import org.jclouds.softlayer.domain.ProductPackage;
-import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Tests behavior of {@code AccountClient}
@@ -48,4 +50,38 @@ public class AccountClientLiveTest extends BaseSoftLayerClientLiveTest {
           }
       }
    }
+
+   @Test
+   public void testListVirtualGuests() throws Exception {
+      Set<VirtualGuest> response = api.getAccountClient().listVirtualGuests();
+      assert null != response;
+      assertTrue(response.size() >= 0);
+      for (VirtualGuest vg : response) {
+         VirtualGuest newDetails = api.getVirtualGuestClient().getVirtualGuest(vg.getId());
+         assertEquals(vg.getId(), newDetails.getId());
+         checkVirtualGuest(vg);
+      }
+   }
+
+   private void checkVirtualGuest(VirtualGuest vg) {
+      if (vg.getBillingItemId() == -1)
+         return;// Quotes and shutting down guests
+
+      assert vg.getAccountId() > 0 : vg;
+      assert vg.getCreateDate() != null : vg;
+      assert vg.getDomain() != null : vg;
+      assert vg.getFullyQualifiedDomainName() != null : vg;
+      assert vg.getHostname() != null : vg;
+      assert vg.getId() > 0 : vg;
+      assert vg.getMaxCpu() > 0 : vg;
+      assert vg.getMaxCpuUnits() != null : vg;
+      assert vg.getMaxMemory() > 0 : vg;
+      assert vg.getStartCpus() > 0 : vg;
+      assert vg.getStatusId() >= 0 : vg;
+      assert vg.getUuid() != null : vg;
+      assert vg.getPrimaryBackendIpAddress() != null : vg;
+      assert vg.getPrimaryIpAddress() != null : vg;
+   }
+
+
 }

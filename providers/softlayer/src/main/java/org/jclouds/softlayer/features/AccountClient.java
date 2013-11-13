@@ -18,6 +18,7 @@ package org.jclouds.softlayer.features;
 
 import java.util.Set;
 import org.jclouds.softlayer.domain.ProductPackage;
+import org.jclouds.softlayer.domain.VirtualGuest;
 
 /**
  * Provides synchronous access to Account.
@@ -31,6 +32,13 @@ import org.jclouds.softlayer.domain.ProductPackage;
 public interface AccountClient {
 
    /**
+    *
+    * @return an account's associated virtual guest objects.
+    */
+   Set<VirtualGuest> listVirtualGuests();
+
+
+    /**
     * @return return all the active packages.
     */
    Set<ProductPackage> getActivePackages();

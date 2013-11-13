@@ -16,7 +16,6 @@
  */
 package org.jclouds.softlayer.features;
 
-import java.util.Set;
 import org.jclouds.softlayer.domain.ProductOrder;
 import org.jclouds.softlayer.domain.ProductOrderReceipt;
 import org.jclouds.softlayer.domain.VirtualGuest;
@@ -31,12 +30,6 @@ import org.jclouds.softlayer.domain.VirtualGuest;
  * @deprecated This will be renamed to VirtualGuestApi in 1.7.0.
  */
 public interface VirtualGuestClient {
-
-   /**
-    * 
-    * @return an account's associated virtual guest objects.
-    */
-   Set<VirtualGuest> listVirtualGuests();
 
    /**
     * 

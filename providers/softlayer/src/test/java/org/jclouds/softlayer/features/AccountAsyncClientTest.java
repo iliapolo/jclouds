@@ -17,12 +17,16 @@
 package org.jclouds.softlayer.features;
 
 import static org.jclouds.reflect.Reflection2.method;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Set;
 
 import org.jclouds.Fallbacks.NullOnNotFoundOr404;
 import org.jclouds.http.functions.ParseJson;
 import org.jclouds.rest.internal.GeneratedHttpRequest;
+import org.jclouds.softlayer.domain.VirtualGuest;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
