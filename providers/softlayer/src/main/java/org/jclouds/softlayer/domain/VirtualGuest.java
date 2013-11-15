@@ -50,7 +50,7 @@ import com.google.common.base.Objects.ToStringHelper;
 "http://sldn.softlayer.com/reference/datatypes/SoftLayer_Virtual_Guest"
 />
  */
-public class VirtualGuest {
+public class VirtualGuest implements SoftLayerNode {
 
    /**
     * These states come from the powerState field. i.e.
@@ -471,6 +471,7 @@ public class VirtualGuest {
    /**
     * @return Unique ID for a computing instance.
     */
+   @Override
    public int getId() {
       return this.id;
    }
@@ -578,6 +579,7 @@ public class VirtualGuest {
    /**
     * @return The billing item for a CloudLayer Compute Instance.
     */
+   @Override
    public int getBillingItemId() {
       return this.billingItemId;
    }

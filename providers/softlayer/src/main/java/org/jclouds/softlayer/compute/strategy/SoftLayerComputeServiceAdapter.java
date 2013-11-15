@@ -16,31 +16,11 @@
  */
 package org.jclouds.softlayer.compute.strategy;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Predicates.and;
-import static com.google.common.collect.Iterables.contains;
-import static com.google.common.collect.Iterables.filter;
-import static com.google.common.collect.Iterables.find;
-import static com.google.common.collect.Iterables.get;
-import static org.jclouds.util.Predicates2.retry;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.matches;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED;
-
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import javax.annotation.Resource;
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceAdapter;
@@ -51,20 +31,21 @@ import org.jclouds.logging.Logger;
 import org.jclouds.softlayer.SoftLayerClient;
 import org.jclouds.softlayer.compute.functions.ProductItemToImage;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
-import org.jclouds.softlayer.domain.Datacenter;
-import org.jclouds.softlayer.domain.Password;
-import org.jclouds.softlayer.domain.ProductItem;
-import org.jclouds.softlayer.domain.ProductItemPrice;
-import org.jclouds.softlayer.domain.ProductOrder;
-import org.jclouds.softlayer.domain.ProductOrderReceipt;
-import org.jclouds.softlayer.domain.ProductPackage;
-import org.jclouds.softlayer.domain.VirtualGuest;
+import org.jclouds.softlayer.domain.*;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSet.Builder;
+import javax.annotation.Resource;
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Predicates.and;
+import static com.google.common.collect.Iterables.*;
+import static org.jclouds.softlayer.predicates.ProductItemPredicates.*;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.*;
+import static org.jclouds.util.Predicates2.retry;
 
 /**
  * defines the connection between the {@link SoftLayerClient} implementation and
@@ -73,7 +54,7 @@ import com.google.common.collect.ImmutableSet.Builder;
  */
 @Singleton
 public class SoftLayerComputeServiceAdapter implements
-      ComputeServiceAdapter<VirtualGuest, Iterable<ProductItem>, ProductItem, Datacenter> {
+      ComputeServiceAdapter<SoftLayerNode, Iterable<ProductItem>, ProductItem, Datacenter> {
 
    @Resource
    @Named(ComputeServiceConstants.COMPUTE_LOGGER)
@@ -109,7 +90,7 @@ public class SoftLayerComputeServiceAdapter implements
    }
 
    @Override
-   public NodeAndInitialCredentials<VirtualGuest> createNodeWithGroupEncodedIntoName(String group, String name,
+   public NodeAndInitialCredentials<SoftLayerNode> createNodeWithGroupEncodedIntoName(String group, String name,
          Template template) {
       checkNotNull(template, "template was null");
       checkNotNull(template.getOptions(), "template options was null");
@@ -139,7 +120,7 @@ public class SoftLayerComputeServiceAdapter implements
       result = client.getVirtualGuestClient().getVirtualGuest(result.getId());
 
       Password pw = get(result.getOperatingSystem().getPasswords(), 0);
-      return new NodeAndInitialCredentials<VirtualGuest>(result, result.getId() + "", LoginCredentials.builder().user(pw.getUsername()).password(
+      return new NodeAndInitialCredentials<SoftLayerNode>(result, result.getId() + "", LoginCredentials.builder().user(pw.getUsername()).password(
             pw.getPassword()).build());
    }
 
@@ -195,11 +176,14 @@ public class SoftLayerComputeServiceAdapter implements
    }
    
    @Override
-   public Iterable<VirtualGuest> listNodes() {
-      return filter(client.getVirtualGuestClient().listVirtualGuests(), new Predicate<VirtualGuest>() {
+   public Iterable<SoftLayerNode> listNodes() {
+      Set<VirtualGuest> virtualGuests = client.getVirtualGuestClient().listVirtualGuests();
+      ImmutableSet.Builder<SoftLayerNode> nodes = ImmutableSet.builder();
+      nodes.addAll(virtualGuests);
+      return filter(nodes.build(), new Predicate<SoftLayerNode>() {
 
          @Override
-         public boolean apply(VirtualGuest arg0) {
+         public boolean apply(SoftLayerNode arg0) {
             boolean hasBillingItem = arg0.getBillingItemId() != -1;
             if (hasBillingItem)
                return true;
@@ -211,11 +195,11 @@ public class SoftLayerComputeServiceAdapter implements
    }
 
    @Override
-   public Iterable<VirtualGuest> listNodesByIds(final Iterable<String> ids) {
-      return filter(listNodes(), new Predicate<VirtualGuest>() {
+   public Iterable<SoftLayerNode> listNodesByIds(final Iterable<String> ids) {
+      return filter(listNodes(), new Predicate<SoftLayerNode>() {
 
             @Override
-            public boolean apply(VirtualGuest server) {
+            public boolean apply(SoftLayerNode server) {
                return contains(ids, server.getId());
             }
          });

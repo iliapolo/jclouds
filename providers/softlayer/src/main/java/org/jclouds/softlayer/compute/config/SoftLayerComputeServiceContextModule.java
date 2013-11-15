@@ -16,19 +16,13 @@
  */
 package org.jclouds.softlayer.compute.config;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Iterables.find;
-import static org.jclouds.Constants.PROPERTY_SESSION_INTERVAL;
-import static org.jclouds.softlayer.predicates.ProductPackagePredicates.named;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import com.google.common.base.Function;
+import com.google.common.base.Objects;
+import com.google.common.base.Splitter;
+import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
+import com.google.inject.Provides;
+import com.google.inject.TypeLiteral;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.config.ComputeServiceAdapterContextModule;
@@ -44,21 +38,21 @@ import org.jclouds.softlayer.compute.functions.ProductItemsToHardware;
 import org.jclouds.softlayer.compute.functions.VirtualGuestToNodeMetadata;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.jclouds.softlayer.compute.strategy.SoftLayerComputeServiceAdapter;
-import org.jclouds.softlayer.domain.Datacenter;
-import org.jclouds.softlayer.domain.ProductItem;
-import org.jclouds.softlayer.domain.ProductItemPrice;
-import org.jclouds.softlayer.domain.ProductPackage;
-import org.jclouds.softlayer.domain.VirtualGuest;
+import org.jclouds.softlayer.domain.*;
 import org.jclouds.softlayer.features.AccountClient;
 import org.jclouds.softlayer.features.ProductPackageClient;
 
-import com.google.common.base.Function;
-import com.google.common.base.Objects;
-import com.google.common.base.Splitter;
-import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
-import com.google.inject.Provides;
-import com.google.inject.TypeLiteral;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.Iterables.find;
+import static org.jclouds.Constants.PROPERTY_SESSION_INTERVAL;
+import static org.jclouds.softlayer.predicates.ProductPackagePredicates.named;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES;
 
 /**
  * 
@@ -70,7 +64,7 @@ public class SoftLayerComputeServiceContextModule extends
    @Override
    protected void configure() {
       super.configure();
-      bind(new TypeLiteral<ComputeServiceAdapter<VirtualGuest, Iterable<ProductItem>, ProductItem, Datacenter>>() {
+      bind(new TypeLiteral<ComputeServiceAdapter<SoftLayerNode, Iterable<ProductItem>, ProductItem, Datacenter>>() {
       }).to(SoftLayerComputeServiceAdapter.class);
       bind(new TypeLiteral<Function<VirtualGuest, NodeMetadata>>() {
       }).to(VirtualGuestToNodeMetadata.class);
