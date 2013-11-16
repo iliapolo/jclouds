@@ -26,7 +26,7 @@ public interface SoftLayerConstants {
    /**
     * Name of the product package corresponding to cloud servers
     */
-   public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME = "jclouds.softlayer.virtualguest.package-name";
+   public static final String PROPERTY_SOFTLAYER_PACKAGE_NAME = "jclouds.softlayer.package-name";
 
    /**
     * pattern where last group matches core speed
@@ -51,6 +51,6 @@ public interface SoftLayerConstants {
    /**
     * standard prices for all new guests.
     */
-   public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES = "jclouds.softlayer.virtualguest.prices";
+   public static final String PROPERTY_SOFTLAYER_PRICES = "jclouds.softlayer.prices";
 
 }

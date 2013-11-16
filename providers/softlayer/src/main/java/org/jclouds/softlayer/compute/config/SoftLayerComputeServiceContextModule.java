@@ -35,7 +35,7 @@ import org.jclouds.softlayer.SoftLayerClient;
 import org.jclouds.softlayer.compute.functions.DatacenterToLocation;
 import org.jclouds.softlayer.compute.functions.ProductItemToImage;
 import org.jclouds.softlayer.compute.functions.ProductItemsToHardware;
-import org.jclouds.softlayer.compute.functions.VirtualGuestToNodeMetadata;
+import org.jclouds.softlayer.compute.functions.SoftLayerNodeToNodeMetadata;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.jclouds.softlayer.compute.strategy.SoftLayerComputeServiceAdapter;
 import org.jclouds.softlayer.domain.*;
@@ -51,8 +51,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Iterables.find;
 import static org.jclouds.Constants.PROPERTY_SESSION_INTERVAL;
 import static org.jclouds.softlayer.predicates.ProductPackagePredicates.named;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_PACKAGE_NAME;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_PRICES;
 
 /**
  * 
@@ -66,8 +66,8 @@ public class SoftLayerComputeServiceContextModule extends
       super.configure();
       bind(new TypeLiteral<ComputeServiceAdapter<SoftLayerNode, Iterable<ProductItem>, ProductItem, Datacenter>>() {
       }).to(SoftLayerComputeServiceAdapter.class);
-      bind(new TypeLiteral<Function<VirtualGuest, NodeMetadata>>() {
-      }).to(VirtualGuestToNodeMetadata.class);
+      bind(new TypeLiteral<Function<SoftLayerNode, NodeMetadata>>() {
+      }).to(SoftLayerNodeToNodeMetadata.class);
       bind(new TypeLiteral<Function<ProductItem, org.jclouds.compute.domain.Image>>() {
       }).to(ProductItemToImage.class);
       bind(new TypeLiteral<Function<Iterable<ProductItem>, org.jclouds.compute.domain.Hardware>>() {
@@ -76,7 +76,7 @@ public class SoftLayerComputeServiceContextModule extends
       }).to(DatacenterToLocation.class);
       bind(TemplateOptions.class).to(SoftLayerTemplateOptions.class);
       // to have the compute service adapter override default locations
-      install(new LocationsFromComputeServiceAdapterModule<VirtualGuest, Iterable<ProductItem>, ProductItem, Datacenter>(){});
+      install(new LocationsFromComputeServiceAdapterModule<SoftLayerNode, Iterable<ProductItem>, ProductItem, Datacenter>(){});
    }
 
    /**
@@ -88,7 +88,7 @@ public class SoftLayerComputeServiceContextModule extends
    @Memoized
    public Supplier<ProductPackage> getProductPackage(AtomicReference<AuthorizationException> authException,
             @Named(PROPERTY_SESSION_INTERVAL) long seconds, final SoftLayerClient client,
-            @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME) final String virtualGuestPackageName) {
+            @Named(PROPERTY_SOFTLAYER_PACKAGE_NAME) final String virtualGuestPackageName) {
       return MemoizedRetryOnTimeOutButNotOnAuthorizationExceptionSupplier.create(authException,
                new Supplier<ProductPackage>() {
                   @Override
@@ -110,7 +110,7 @@ public class SoftLayerComputeServiceContextModule extends
    // TODO: check the prices really do exist
    @Provides
    @Singleton
-   public Iterable<ProductItemPrice> prices(@Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES) String prices) {
+   public Iterable<ProductItemPrice> prices(@Named(PROPERTY_SOFTLAYER_PRICES) String prices) {
       return Iterables.transform(Splitter.on(',').split(checkNotNull(prices, "prices")),
                new Function<String, ProductItemPrice>() {
                   @Override

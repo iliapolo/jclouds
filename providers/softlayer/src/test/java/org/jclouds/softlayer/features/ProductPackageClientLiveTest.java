@@ -55,7 +55,7 @@ public class ProductPackageClientLiveTest extends BaseSoftLayerClientLiveTest {
     * passed in using the property
     * 
     * @{code org.jclouds.softlayer.reference.SoftLayerConstants.
-    *        PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME}
+    *        PROPERTY_SOFTLAYER_PACKAGE_NAME}
     */
    public static final String CLOUD_SERVER_PACKAGE_NAME = "Cloud Server";
 

@@ -16,15 +16,11 @@
  */
 package org.jclouds.softlayer.compute.functions;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.FluentIterable.from;
-
-import java.util.Map;
-import java.util.Set;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.domain.Hardware;
 import org.jclouds.compute.domain.Image;
@@ -37,20 +33,23 @@ import org.jclouds.location.predicates.LocationPredicates;
 import org.jclouds.softlayer.SoftLayerClient;
 import org.jclouds.softlayer.domain.ProductItem;
 import org.jclouds.softlayer.domain.ProductOrder;
+import org.jclouds.softlayer.domain.SoftLayerNode;
 import org.jclouds.softlayer.domain.VirtualGuest;
 import org.jclouds.softlayer.predicates.ProductItemPredicates;
 
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import java.util.Map;
+import java.util.Set;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.FluentIterable.from;
 
 /**
  * @author Adrian Cole
  */
 @Singleton
-public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMetadata> {
+public class SoftLayerNodeToNodeMetadata implements Function<SoftLayerNode, NodeMetadata> {
 
    public static final Map<VirtualGuest.State, Status> serverStateToNodeStatus = ImmutableMap
          .<VirtualGuest.State, Status> builder().put(VirtualGuest.State.HALTED, Status.PENDING)
@@ -58,14 +57,14 @@ public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMe
          .put(VirtualGuest.State.UNRECOGNIZED, Status.UNRECOGNIZED).build();
 
    private final Supplier<Set<? extends Location>> locations;
-   private final GetHardwareForVirtualGuest hardware;
-   private final GetImageForVirtualGuest images;
+   private final GetHardwareForSoftLayerNode hardware;
+   private final GetImageForSoftLayerNode images;
    private final GroupNamingConvention nodeNamingConvention;
 
    @Inject
-   VirtualGuestToNodeMetadata(@Memoized Supplier<Set<? extends Location>> locations,
-         GetHardwareForVirtualGuest hardware, GetImageForVirtualGuest images,
-         GroupNamingConvention.Factory namingConvention) {
+   SoftLayerNodeToNodeMetadata(@Memoized Supplier<Set<? extends Location>> locations,
+                               GetHardwareForSoftLayerNode hardware, GetImageForSoftLayerNode images,
+                               GroupNamingConvention.Factory namingConvention) {
       this.nodeNamingConvention = checkNotNull(namingConvention, "namingConvention").createWithoutPrefix();
       this.locations = checkNotNull(locations, "locations");
       this.hardware = checkNotNull(hardware, "hardware");
@@ -73,7 +72,7 @@ public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMe
    }
 
    @Override
-   public NodeMetadata apply(VirtualGuest from) {
+   public NodeMetadata apply(SoftLayerNode from) {
       // convert the result object to a jclouds NodeMetadata
       NodeMetadataBuilder builder = new NodeMetadataBuilder();
       builder.ids(from.getId() + "");
@@ -90,7 +89,7 @@ public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMe
          builder.operatingSystem(image.getOperatingSystem());
          builder.hardware(hardware.getHardware(from));
       }
-      builder.status(serverStateToNodeStatus.get(from.getPowerState().getKeyName()));
+      builder.status(serverStateToNodeStatus.get(((VirtualGuest)from).getPowerState().getKeyName()));
 
       // These are null for 'bad' guest orders in the HALTED state.
       if (from.getPrimaryIpAddress() != null)
@@ -101,24 +100,24 @@ public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMe
    }
 
    @Singleton
-   public static class GetHardwareForVirtualGuest {
+   public static class GetHardwareForSoftLayerNode {
 
       private final SoftLayerClient client;
       private final Function<Iterable<ProductItem>, Hardware> productItemsToHardware;
 
       @Inject
-      public GetHardwareForVirtualGuest(SoftLayerClient client,
-            Function<Iterable<ProductItem>, Hardware> productItemsToHardware) {
+      public GetHardwareForSoftLayerNode(SoftLayerClient client,
+                                         Function<Iterable<ProductItem>, Hardware> productItemsToHardware) {
          this.client = checkNotNull(client, "client");
          this.productItemsToHardware = checkNotNull(productItemsToHardware, "productItemsToHardware");
 
       }
 
-      public Hardware getHardware(VirtualGuest guest) {
+      public Hardware getHardware(SoftLayerNode node) {
          // 'bad' orders have no start cpu's and cause the order lookup to fail.
-         if (guest.getStartCpus() < 1)
+         if (((VirtualGuest)node).getStartCpus() < 1)
             return null;
-         ProductOrder order = client.getVirtualGuestClient().getOrderTemplate(guest.getId());
+         ProductOrder order = client.getVirtualGuestClient().getOrderTemplate(node.getId());
          if (order == null)
             return null;
          Iterable<ProductItem> items = Iterables.transform(order.getPrices(), ProductItems.item());
@@ -127,20 +126,20 @@ public class VirtualGuestToNodeMetadata implements Function<VirtualGuest, NodeMe
    }
 
    @Singleton
-   public static class GetImageForVirtualGuest {
+   public static class GetImageForSoftLayerNode {
 
       private SoftLayerClient client;
 
       @Inject
-      public GetImageForVirtualGuest(SoftLayerClient client) {
+      public GetImageForSoftLayerNode(SoftLayerClient client) {
          this.client = client;
       }
 
-      public Image getImage(VirtualGuest guest) {
+      public Image getImage(SoftLayerNode node) {
          // 'bad' orders have no start cpu's and cause the order lookup to fail.
-         if (guest.getStartCpus() < 1)
+         if (((VirtualGuest)node).getStartCpus() < 1)
             return null;
-         ProductOrder order = client.getVirtualGuestClient().getOrderTemplate(guest.getId());
+         ProductOrder order = client.getVirtualGuestClient().getOrderTemplate(node.getId());
          if (order == null)
             return null;
          Iterable<ProductItem> items = Iterables.transform(order.getPrices(), ProductItems.item());

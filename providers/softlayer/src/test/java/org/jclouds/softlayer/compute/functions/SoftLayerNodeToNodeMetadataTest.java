@@ -50,7 +50,7 @@ import com.google.inject.Guice;
  * @author Adrian Cole
  */
 @Test(groups = "unit", testName = "VirtualGuestToNodeMetadataTest")
-public class VirtualGuestToNodeMetadataTest {
+public class SoftLayerNodeToNodeMetadataTest {
    GroupNamingConvention.Factory namingConvention = Guice.createInjector().getInstance(GroupNamingConvention.Factory.class);
 
    @Test
@@ -64,8 +64,8 @@ public class VirtualGuestToNodeMetadataTest {
       Supplier<Set<? extends Location>> locationSupplier = Suppliers.<Set<? extends Location>> ofInstance(ImmutableSet
             .<Location> of(expectedLocation));
 
-      VirtualGuestToNodeMetadata parser = new VirtualGuestToNodeMetadata(
-            locationSupplier, new GetHardwareForVirtualGuestMock(), new GetImageForVirtualGuestMock(), namingConvention);
+      SoftLayerNodeToNodeMetadata parser = new SoftLayerNodeToNodeMetadata(
+            locationSupplier, new GetHardwareForSoftLayerNodeMock(), new GetImageForSoftLayerNodeMock(), namingConvention);
 
       NodeMetadata node = parser.apply(guest);
 
@@ -75,9 +75,9 @@ public class VirtualGuestToNodeMetadataTest {
                   .location(expectedLocation).status(Status.PENDING)
                   .publicAddresses(ImmutableSet.of("173.192.29.186"))
                   .privateAddresses(ImmutableSet.of("10.37.102.194"))
-                  .hardware(new GetHardwareForVirtualGuestMock().getHardware(guest))
-                  .imageId(new GetImageForVirtualGuestMock().getImage(guest).getId())
-                  .operatingSystem(new GetImageForVirtualGuestMock().getImage(guest).getOperatingSystem()).build());
+                  .hardware(new GetHardwareForSoftLayerNodeMock().getHardware(guest))
+                  .imageId(new GetImageForSoftLayerNodeMock().getImage(guest).getId())
+                  .operatingSystem(new GetImageForSoftLayerNodeMock().getImage(guest).getOperatingSystem()).build());
 
    }
 
@@ -91,17 +91,17 @@ public class VirtualGuestToNodeMetadataTest {
       Supplier<Set<? extends Location>> locationSupplier = Suppliers.<Set<? extends Location>> ofInstance(ImmutableSet
             .<Location> of());
 
-      VirtualGuestToNodeMetadata parser = new VirtualGuestToNodeMetadata(locationSupplier,
-            new GetHardwareForVirtualGuestMock(), new GetImageForVirtualGuestMock(), namingConvention);
+      SoftLayerNodeToNodeMetadata parser = new SoftLayerNodeToNodeMetadata(locationSupplier,
+            new GetHardwareForSoftLayerNodeMock(), new GetImageForSoftLayerNodeMock(), namingConvention);
 
       NodeMetadata node = parser.apply(guest);
 
       assertEquals(
             node,
             new NodeMetadataBuilder().ids("413348").name("foo-ef4").hostname("foo-ef4").group("foo")
-                  .status(Status.PENDING).hardware(new GetHardwareForVirtualGuestMock().getHardware(guest))
-                  .imageId(new GetImageForVirtualGuestMock().getImage(guest).getId())
-                  .operatingSystem(new GetImageForVirtualGuestMock().getImage(guest).getOperatingSystem()).build());
+                  .status(Status.PENDING).hardware(new GetHardwareForSoftLayerNodeMock().getHardware(guest))
+                  .imageId(new GetImageForSoftLayerNodeMock().getImage(guest).getId())
+                  .operatingSystem(new GetImageForSoftLayerNodeMock().getImage(guest).getOperatingSystem()).build());
 
    }
 
@@ -116,8 +116,8 @@ public class VirtualGuestToNodeMetadataTest {
       Supplier<Set<? extends Location>> locationSupplier = Suppliers.<Set<? extends Location>> ofInstance(ImmutableSet
             .<Location> of(expectedLocation));
 
-      VirtualGuestToNodeMetadata parser = new VirtualGuestToNodeMetadata(locationSupplier,
-            new GetHardwareForVirtualGuestMock(), new GetImageForVirtualGuestMock(), namingConvention);
+      SoftLayerNodeToNodeMetadata parser = new SoftLayerNodeToNodeMetadata(locationSupplier,
+            new GetHardwareForSoftLayerNodeMock(), new GetImageForSoftLayerNodeMock(), namingConvention);
 
       NodeMetadata node = parser.apply(guest);
 
@@ -127,9 +127,9 @@ public class VirtualGuestToNodeMetadataTest {
                   .location(expectedLocation).status(Status.PENDING)
                   .publicAddresses(ImmutableSet.of("173.192.29.187"))
                   .privateAddresses(ImmutableSet.of("10.37.102.195"))
-                  .hardware(new GetHardwareForVirtualGuestMock().getHardware(guest))
-                  .imageId(new GetImageForVirtualGuestMock().getImage(guest).getId())
-                  .operatingSystem(new GetImageForVirtualGuestMock().getImage(guest).getOperatingSystem()).build());
+                  .hardware(new GetHardwareForSoftLayerNodeMock().getHardware(guest))
+                  .imageId(new GetImageForSoftLayerNodeMock().getImage(guest).getId())
+                  .operatingSystem(new GetImageForSoftLayerNodeMock().getImage(guest).getOperatingSystem()).build());
 
    }
 
@@ -144,8 +144,8 @@ public class VirtualGuestToNodeMetadataTest {
       Supplier<Set<? extends Location>> locationSupplier = Suppliers.<Set<? extends Location>> ofInstance(ImmutableSet
             .<Location> of(expectedLocation));
 
-      VirtualGuestToNodeMetadata parser = new VirtualGuestToNodeMetadata(locationSupplier,
-            new GetHardwareForVirtualGuestMock(), new GetImageForVirtualGuestMock(), namingConvention);
+      SoftLayerNodeToNodeMetadata parser = new SoftLayerNodeToNodeMetadata(locationSupplier,
+            new GetHardwareForSoftLayerNodeMock(), new GetImageForSoftLayerNodeMock(), namingConvention);
 
       NodeMetadata node = parser.apply(guest);
 
@@ -155,9 +155,9 @@ public class VirtualGuestToNodeMetadataTest {
                   .location(expectedLocation).status(Status.SUSPENDED)
                   .publicAddresses(ImmutableSet.of("173.192.29.187"))
                   .privateAddresses(ImmutableSet.of("10.37.102.195"))
-                  .hardware(new GetHardwareForVirtualGuestMock().getHardware(guest))
-                  .imageId(new GetImageForVirtualGuestMock().getImage(guest).getId())
-                  .operatingSystem(new GetImageForVirtualGuestMock().getImage(guest).getOperatingSystem()).build());
+                  .hardware(new GetHardwareForSoftLayerNodeMock().getHardware(guest))
+                  .imageId(new GetImageForSoftLayerNodeMock().getImage(guest).getId())
+                  .operatingSystem(new GetImageForSoftLayerNodeMock().getImage(guest).getOperatingSystem()).build());
 
    }
 
@@ -172,8 +172,8 @@ public class VirtualGuestToNodeMetadataTest {
       Supplier<Set<? extends Location>> locationSupplier = Suppliers.<Set<? extends Location>> ofInstance(ImmutableSet
             .<Location> of(expectedLocation));
 
-      VirtualGuestToNodeMetadata parser = new VirtualGuestToNodeMetadata(locationSupplier,
-            new GetHardwareForVirtualGuestMock(), new GetImageForVirtualGuestMock(), namingConvention);
+      SoftLayerNodeToNodeMetadata parser = new SoftLayerNodeToNodeMetadata(locationSupplier,
+            new GetHardwareForSoftLayerNodeMock(), new GetImageForSoftLayerNodeMock(), namingConvention);
 
       NodeMetadata node = parser.apply(guest);
 
@@ -183,15 +183,15 @@ public class VirtualGuestToNodeMetadataTest {
                   .location(expectedLocation).status(Status.RUNNING)
                   .publicAddresses(ImmutableSet.of("173.192.29.187"))
                   .privateAddresses(ImmutableSet.of("10.37.102.195"))
-                  .hardware(new GetHardwareForVirtualGuestMock().getHardware(guest))
-                  .imageId(new GetImageForVirtualGuestMock().getImage(guest).getId())
-                  .operatingSystem(new GetImageForVirtualGuestMock().getImage(guest).getOperatingSystem()).build());
+                  .hardware(new GetHardwareForSoftLayerNodeMock().getHardware(guest))
+                  .imageId(new GetImageForSoftLayerNodeMock().getImage(guest).getId())
+                  .operatingSystem(new GetImageForSoftLayerNodeMock().getImage(guest).getOperatingSystem()).build());
 
    }
 
-   private static class GetHardwareForVirtualGuestMock extends VirtualGuestToNodeMetadata.GetHardwareForVirtualGuest {
+   private static class GetHardwareForSoftLayerNodeMock extends SoftLayerNodeToNodeMetadata.GetHardwareForSoftLayerNode {
       @SuppressWarnings("unchecked")
-      public GetHardwareForVirtualGuestMock() {
+      public GetHardwareForSoftLayerNodeMock() {
          super(createNiceMock(SoftLayerClient.class), createNiceMock(Function.class));
       }
 
@@ -201,8 +201,8 @@ public class VirtualGuestToNodeMetadataTest {
       }
    }
 
-   private static class GetImageForVirtualGuestMock extends VirtualGuestToNodeMetadata.GetImageForVirtualGuest {
-      public GetImageForVirtualGuestMock() {
+   private static class GetImageForSoftLayerNodeMock extends SoftLayerNodeToNodeMetadata.GetImageForSoftLayerNode {
+      public GetImageForSoftLayerNodeMock() {
          super(null);
       }
 

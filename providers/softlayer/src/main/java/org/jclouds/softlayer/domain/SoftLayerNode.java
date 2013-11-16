@@ -17,4 +17,30 @@ public interface SoftLayerNode {
     * @return Unique ID for a node instance.
     */
    int getId();
+
+   /**
+    *
+    * @return a node's host name.
+    */
+   String getHostname();
+
+   /**
+    *
+    * @return the node's data center.
+    */
+   Datacenter getDatacenter();
+
+   /**
+    *
+    * @return the node's public ip.
+    */
+   String getPrimaryIpAddress();
+
+   /**
+    *
+    * @return the node's private ip.
+    */
+   String getPrimaryBackendIpAddress();
+
+
 }

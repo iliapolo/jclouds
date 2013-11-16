@@ -245,7 +245,7 @@ public class SoftLayerComputeServiceAdapter implements
       client.getVirtualGuestClient().pauseVirtualGuest(Long.parseLong(id));
    }
 
-   public static class VirtualGuestHasLoginDetailsPresent implements Predicate<VirtualGuest> {
+   public static class VirtualGuestHasLoginDetailsPresent implements Predicate<SoftLayerNode> {
       private final SoftLayerClient client;
 
       @Inject
@@ -254,10 +254,10 @@ public class SoftLayerComputeServiceAdapter implements
       }
 
       @Override
-      public boolean apply(VirtualGuest guest) {
-         checkNotNull(guest, "virtual guest was null");
+      public boolean apply(SoftLayerNode node) {
+         checkNotNull(node, "node was null");
 
-         VirtualGuest newGuest = client.getVirtualGuestClient().getVirtualGuest(guest.getId());
+         VirtualGuest newGuest = client.getVirtualGuestClient().getVirtualGuest(node.getId());
          boolean hasBackendIp = newGuest.getPrimaryBackendIpAddress() != null;
          boolean hasPrimaryIp = newGuest.getPrimaryIpAddress() != null;
          boolean hasPasswords = newGuest.getOperatingSystem() != null
