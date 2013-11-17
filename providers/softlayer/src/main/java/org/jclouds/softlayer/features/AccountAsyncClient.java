@@ -71,7 +71,7 @@ public interface AccountAsyncClient {
    ListenableFuture<Set<ProductPackage>> getActivePackages();
 
    /**
-    * @see AccountClient#listVirtualGuests
+    * @see VirtualGuestClient#listVirtualGuests
     */
    @GET
    @Path("/SoftLayer_Account/getVirtualGuests")
