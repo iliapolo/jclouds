@@ -23,7 +23,6 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
 
-import org.jclouds.Fallbacks;
 import org.jclouds.Fallbacks.NullOnNotFoundOr404;
 import org.jclouds.http.filters.BasicAuthentication;
 import org.jclouds.rest.annotations.Fallback;
@@ -32,7 +31,6 @@ import org.jclouds.rest.annotations.RequestFilters;
 import org.jclouds.softlayer.domain.ProductPackage;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import org.jclouds.softlayer.domain.VirtualGuest;
 
 /**
  * Provides asynchronous access to Account via their REST API.
@@ -48,10 +46,7 @@ import org.jclouds.softlayer.domain.VirtualGuest;
 @Path("/v{jclouds.api-version}")
 public interface AccountAsyncClient {
 
-   public static String LIST_GUEST_MASK = "virtualGuests.powerState;virtualGuests.networkVlans;virtualGuests.operatingSystem.passwords;virtualGuests.datacenter;virtualGuests.billingItem";
-
-
-    /**
+   /**
     * @see AccountClient#getReducedActivePackages()
     */
    @GET
@@ -69,15 +64,5 @@ public interface AccountAsyncClient {
    @Consumes(MediaType.APPLICATION_JSON)
    @Fallback(NullOnNotFoundOr404.class)
    ListenableFuture<Set<ProductPackage>> getActivePackages();
-
-   /**
-    * @see VirtualGuestClient#listVirtualGuests
-    */
-   @GET
-   @Path("/SoftLayer_Account/getVirtualGuests")
-   @QueryParams(keys = "objectMask", values = LIST_GUEST_MASK)
-   @Consumes(MediaType.APPLICATION_JSON)
-   @Fallback(Fallbacks.EmptySetOnNotFoundOr404.class)
-   ListenableFuture<Set<VirtualGuest>> listVirtualGuests();
 
 }

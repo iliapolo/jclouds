@@ -196,7 +196,7 @@ public class SoftLayerComputeServiceAdapter implements
    
    @Override
    public Iterable<VirtualGuest> listNodes() {
-      return filter(client.getAccountClient().listVirtualGuests(), new Predicate<VirtualGuest>() {
+      return filter(client.getVirtualGuestClient().listVirtualGuests(), new Predicate<VirtualGuest>() {
 
          @Override
          public boolean apply(VirtualGuest arg0) {

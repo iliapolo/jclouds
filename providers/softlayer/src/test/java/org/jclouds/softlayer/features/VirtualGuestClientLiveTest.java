@@ -16,31 +16,44 @@
  */
 package org.jclouds.softlayer.features;
 
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSet.Builder;
-import com.google.common.collect.Iterables;
-import com.google.inject.Injector;
-import com.google.inject.Key;
-import com.google.inject.Module;
-import com.google.inject.TypeLiteral;
-import org.jclouds.compute.domain.Template;
-import org.jclouds.compute.domain.TemplateBuilder;
-import org.jclouds.softlayer.SoftLayerClient;
-import org.jclouds.softlayer.domain.*;
-import org.testng.annotations.Test;
-
-import java.util.Properties;
-import java.util.Random;
-
 import static com.google.common.base.Predicates.and;
 import static com.google.common.collect.Iterables.find;
 import static com.google.common.collect.Iterables.get;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
+import static org.jclouds.softlayer.predicates.ProductItemPredicates.units;
 import static org.jclouds.softlayer.predicates.ProductPackagePredicates.named;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+
+import java.util.Map;
+import java.util.Properties;
+import java.util.Random;
+import java.util.Set;
+
+import com.google.common.base.Splitter;
+import org.jclouds.compute.domain.Template;
+import org.jclouds.compute.domain.TemplateBuilder;
+import org.jclouds.softlayer.SoftLayerClient;
+import org.jclouds.softlayer.compute.functions.ProductItems;
+import org.jclouds.softlayer.domain.ProductItem;
+import org.jclouds.softlayer.domain.ProductItemPrice;
+import org.jclouds.softlayer.domain.ProductOrder;
+import org.jclouds.softlayer.domain.ProductOrderReceipt;
+import org.jclouds.softlayer.domain.ProductPackage;
+import org.jclouds.softlayer.domain.VirtualGuest;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
 
 /**
  * Tests behavior of {@code VirtualGuestClient}
@@ -53,11 +66,23 @@ public class VirtualGuestClientLiveTest extends BaseSoftLayerClientLiveTest {
    private static final String TEST_HOSTNAME_PREFIX = "livetest";
    private TemplateBuilder templateBuilder;
 
+   @Test
+   public void testListVirtualGuests() throws Exception {
+      Set<VirtualGuest> response = api().listVirtualGuests();
+      assert null != response;
+      assertTrue(response.size() >= 0);
+      for (VirtualGuest vg : response) {
+         VirtualGuest newDetails = api().getVirtualGuest(vg.getId());
+         assertEquals(vg.getId(), newDetails.getId());
+         checkVirtualGuest(vg);
+      }
+   }
+
    @Test(groups = "live")
    public void testCancelAndPlaceOrder() {
       // TODO: Should also check if there are active transactions before trying to cancel.
       // objectMask: virtualGuests.activeTransaction
-      for (VirtualGuest guest : accountApi().listVirtualGuests()) {
+      for (VirtualGuest guest : api().listVirtualGuests()) {
          if (guest.getHostname().startsWith(TEST_HOSTNAME_PREFIX)) {
             if (guest.getBillingItemId() != -1) {
                api().cancelService(guest.getBillingItemId());
@@ -103,8 +128,24 @@ public class VirtualGuestClientLiveTest extends BaseSoftLayerClientLiveTest {
       return api.getVirtualGuestClient();
    }
 
-   private AccountClient accountApi() {
-      return api.getAccountClient();
+   private void checkVirtualGuest(VirtualGuest vg) {
+      if (vg.getBillingItemId() == -1)
+         return;// Quotes and shutting down guests
+
+      assert vg.getAccountId() > 0 : vg;
+      assert vg.getCreateDate() != null : vg;
+      assert vg.getDomain() != null : vg;
+      assert vg.getFullyQualifiedDomainName() != null : vg;
+      assert vg.getHostname() != null : vg;
+      assert vg.getId() > 0 : vg;
+      assert vg.getMaxCpu() > 0 : vg;
+      assert vg.getMaxCpuUnits() != null : vg;
+      assert vg.getMaxMemory() > 0 : vg;
+      assert vg.getStartCpus() > 0 : vg;
+      assert vg.getStatusId() >= 0 : vg;
+      assert vg.getUuid() != null : vg;
+      assert vg.getPrimaryBackendIpAddress() != null : vg;
+      assert vg.getPrimaryIpAddress() != null : vg;
    }
 
    private Iterable<ProductItemPrice> getPrices(Template template, ProductPackage productPackage) {

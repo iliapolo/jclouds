@@ -54,7 +54,18 @@ import com.google.common.util.concurrent.ListenableFuture;
 @RequestFilters(BasicAuthentication.class)
 @Path("/v{jclouds.api-version}")
 public interface VirtualGuestAsyncClient {
+   public static String LIST_GUEST_MASK = "virtualGuests.powerState;virtualGuests.networkVlans;virtualGuests.operatingSystem.passwords;virtualGuests.datacenter;virtualGuests.billingItem";
    public static String GUEST_MASK = "powerState;networkVlans;operatingSystem.passwords;datacenter;billingItem";
+
+   /**
+    * @see VirtualGuestClient#listVirtualGuests
+    */
+   @GET
+   @Path("/SoftLayer_Account/VirtualGuests.json")
+   @QueryParams(keys = "objectMask", values = LIST_GUEST_MASK)
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(EmptySetOnNotFoundOr404.class)
+   ListenableFuture<Set<VirtualGuest>> listVirtualGuests();
 
    /**
     * @see VirtualGuestClient#getVirtualGuest
