@@ -88,14 +88,14 @@ public class SoftLayerComputeServiceContextModule extends
    @Memoized
    public Supplier<ProductPackage> getProductPackage(AtomicReference<AuthorizationException> authException,
             @Named(PROPERTY_SESSION_INTERVAL) long seconds, final SoftLayerClient client,
-            @Named(PROPERTY_SOFTLAYER_PACKAGE_NAME) final String virtualGuestPackageName) {
+            @Named(PROPERTY_SOFTLAYER_PACKAGE_NAME) final String packageName) {
       return MemoizedRetryOnTimeOutButNotOnAuthorizationExceptionSupplier.create(authException,
                new Supplier<ProductPackage>() {
                   @Override
                   public ProductPackage get() {
                      AccountClient accountClient = client.getAccountClient();
                      ProductPackageClient productPackageClient = client.getProductPackageClient();
-                     ProductPackage p = find(accountClient.getReducedActivePackages(), named(virtualGuestPackageName));
+                     ProductPackage p = find(accountClient.getReducedActivePackages(), named(packageName));
                      return productPackageClient.getProductPackage(p.getId());
                   }
                   
@@ -106,6 +106,8 @@ public class SoftLayerComputeServiceContextModule extends
                   }
                }, seconds, TimeUnit.SECONDS);
    }
+
+
 
    // TODO: check the prices really do exist
    @Provides

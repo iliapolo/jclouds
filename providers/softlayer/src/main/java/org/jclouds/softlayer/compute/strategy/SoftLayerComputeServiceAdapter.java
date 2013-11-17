@@ -62,7 +62,7 @@ public class SoftLayerComputeServiceAdapter implements
 
    private final SoftLayerClient client;
    private final Supplier<ProductPackage> productPackageSupplier;
-   private final Predicate<VirtualGuest> loginDetailsTester;
+   private final Predicate<SoftLayerNode> loginDetailsTester;
    private final long guestLoginDelay;
    private final Pattern cpuPattern;
    private final Pattern disk0Type;
@@ -177,9 +177,17 @@ public class SoftLayerComputeServiceAdapter implements
    
    @Override
    public Iterable<SoftLayerNode> listNodes() {
-      Set<VirtualGuest> virtualGuests = client.getVirtualGuestClient().listVirtualGuests();
+
       ImmutableSet.Builder<SoftLayerNode> nodes = ImmutableSet.builder();
-      nodes.addAll(virtualGuests);
+
+      if (productPackageSupplier.get().getName().equals("Bare Metal Instance")) {
+         Set<HardwareServer> hardwareServers = client.getHardwareServerClient().listHardwareServers();
+         nodes.addAll(hardwareServers);
+      } else {
+         Set<VirtualGuest> virtualGuests = client.getVirtualGuestClient().listVirtualGuests();
+         nodes.addAll(virtualGuests);
+      }
+
       return filter(nodes.build(), new Predicate<SoftLayerNode>() {
 
          @Override
