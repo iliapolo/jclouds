@@ -58,6 +58,7 @@ public class HardwareServerAsyncClientTest extends BaseSoftLayerBareMetalInstanc
 
    }
 
+   @Test(enabled = false)
    public void testCancelService() throws SecurityException, NoSuchMethodException, IOException {
 
       Invokable<?, ?> method = method(HardwareServerAsyncClient.class, "cancelService", long.class);
