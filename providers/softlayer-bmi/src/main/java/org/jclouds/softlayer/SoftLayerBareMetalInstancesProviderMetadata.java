@@ -53,6 +53,7 @@ public class SoftLayerBareMetalInstancesProviderMetadata extends BaseProviderMet
    public static Properties defaultProperties() {
       Properties properties = new Properties();
       properties.setProperty(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY, "" + 60 * 60 * 1000);
+      properties.setProperty(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY, "" + 4 * 60 * 60 * 1000);
       properties.setProperty(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PACKAGE_NAME, "Bare Metal Instance");
 
       // 10, 100, 1000

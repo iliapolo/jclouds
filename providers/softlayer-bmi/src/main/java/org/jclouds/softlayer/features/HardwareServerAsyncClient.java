@@ -27,6 +27,7 @@ import org.jclouds.softlayer.binders.HardwareProductOrderToJson;
 import org.jclouds.softlayer.domain.HardwareProductOrder;
 import org.jclouds.softlayer.domain.HardwareProductOrderReceipt;
 import org.jclouds.softlayer.domain.HardwareServer;
+import org.jclouds.softlayer.domain.Transaction;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
@@ -37,7 +38,7 @@ import javax.ws.rs.core.MediaType;
  * 
  * @see org.jclouds.softlayer.features.HardwareServerClient
  * @see <a href="http://sldn.softlayer.com/article/REST" />
- * @author Adrian Cole
+ * @author Eli Polonsky
  * @deprecated Async interfaces will be removed in 1.7.0
  */
 @Deprecated
@@ -76,4 +77,12 @@ public interface HardwareServerAsyncClient {
    @Fallback(Fallbacks.NullOnNotFoundOr404.class)
    ListenableFuture<HardwareProductOrderReceipt> orderHardwareServer(@BinderParam(HardwareProductOrderToJson.class)HardwareProductOrder order);
 
+   /**
+    * @see org.jclouds.softlayer.features.HardwareServerClient#getActiveTransaction
+    */
+   @GET
+   @Path("/SoftLayer_Hardware_Server/{id}/getActiveTransaction.json")
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(Fallbacks.NullOnNotFoundOr404.class)
+   ListenableFuture<Transaction> getActiveTransaction(@PathParam("id") long id);
 }

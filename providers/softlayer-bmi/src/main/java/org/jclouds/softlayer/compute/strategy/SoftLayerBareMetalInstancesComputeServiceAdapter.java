@@ -21,22 +21,27 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Maps;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.reference.ComputeServiceConstants;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
 import org.jclouds.softlayer.SoftLayerBareMetalInstancesClient;
 import org.jclouds.softlayer.compute.functions.ProductItemToImage;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.jclouds.softlayer.domain.*;
+import org.jclouds.softlayer.reference.HardwareSoftLayerConstants;
 
 import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.*;
 import static com.google.common.base.Predicates.and;
@@ -45,6 +50,7 @@ import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
 import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY;
 import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PORT_SPEED;
+import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY;
 import static org.jclouds.util.Predicates2.retry;
 
 /**
@@ -63,25 +69,29 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    private final SoftLayerBareMetalInstancesClient client;
    private final Supplier<ProductPackage> productPackageSupplier;
    private final Predicate<HardwareServer> loginDetailsTester;
+   private final Predicate<HardwareServer> activeTransactionsTester;
    private final long serverLoginDelay;
    private final float portSpeed;
    private final Iterable<ProductItemPrice> prices;
 
    @Inject
    public SoftLayerBareMetalInstancesComputeServiceAdapter(SoftLayerBareMetalInstancesClient client,
-                                                           HardwareServerHasLoginDetailsPresent virtualGuestHasLoginDetailsPresent,
+                                                           HardwareServerHasLoginDetailsPresent serverHasLoginDetailsPresent,
+                                                           HardwareServerHasNoRunningTransactions activeTransactionsTester,
                                                            @Memoized Supplier<ProductPackage> productPackageSupplier,
                                                            Iterable<ProductItemPrice> prices,
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PORT_SPEED) float portSpeed,
-                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY) long serverLoginDelay) {
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY) long serverLoginDelay,
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
       this.client = checkNotNull(client, "client");
       this.serverLoginDelay = serverLoginDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
       checkArgument(serverLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
-      this.loginDetailsTester = retry(virtualGuestHasLoginDetailsPresent, serverLoginDelay);
+      this.loginDetailsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
       this.prices = checkNotNull(prices, "prices");
       this.portSpeed = portSpeed;
       checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
+      this.activeTransactionsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
    }
 
    @Override
@@ -238,7 +248,9 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    }
 
    public static class HardwareServerHasLoginDetailsPresent implements Predicate<HardwareServer> {
+
       private final SoftLayerBareMetalInstancesClient client;
+
 
       @Inject
       public HardwareServerHasLoginDetailsPresent(SoftLayerBareMetalInstancesClient client) {
@@ -246,16 +258,61 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       }
 
       @Override
-      public boolean apply(HardwareServer guest) {
-         checkNotNull(guest, "virtual guest was null");
+      public boolean apply(HardwareServer server) {
+         checkNotNull(server, "virtual guest was null");
 
-         HardwareServer newGuest = client.getHardwareServerClient().getHardwareServer(guest.getId());
+         HardwareServer newGuest = client.getHardwareServerClient().getHardwareServer(server.getId());
          boolean hasBackendIp = newGuest.getPrimaryBackendIpAddress() != null;
          boolean hasPrimaryIp = newGuest.getPrimaryIpAddress() != null;
          boolean hasPasswords = newGuest.getOperatingSystem() != null
                && newGuest.getOperatingSystem().getPasswords().size() > 0;
 
          return hasBackendIp && hasPrimaryIp && hasPasswords;
+      }
+   }
+
+   public static class HardwareServerHasNoRunningTransactions implements Predicate<HardwareServer> {
+
+      private Map<Integer, Transaction> transactionPerServer = Maps.newHashMap();
+
+      private final SoftLayerBareMetalInstancesClient client;
+
+      @Resource
+      @Named(HardwareSoftLayerConstants.TRANSACTION_LOGGER)
+      protected Logger logger = Logger.NULL;
+
+      @Inject
+      public HardwareServerHasNoRunningTransactions(SoftLayerBareMetalInstancesClient client) {
+         this.client = checkNotNull(client, "client was null");
+      }
+
+      @Override
+      public boolean apply(@Nullable HardwareServer server) {
+
+         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(server.getId());
+         if (activeTransaction == null && transactionPerServer.get(server.getId()) != null) {
+            // no current transaction, but a previous transaction was present.
+            // this means the server is ready.
+            transactionPerServer.remove(server.getId());
+            return true;
+         } else {
+            if (activeTransaction == null) {
+               // no current transaction, and no previous transaction.
+               // this means the server has not yet started its transaction process.
+               return false;
+            }
+            Transaction transaction = transactionPerServer.get(server.getId());
+            if (transaction.getId() != activeTransaction.getId()) {
+               // server has moved to a new transaction. save and print
+               Transaction previous = transactionPerServer.get(server.getId());
+               transactionPerServer.put(server.getId(), activeTransaction);
+               logger.info("Successfully completed transaction " + previous.getName() + " in "
+                       + TimeUnit.SECONDS.toMinutes(previous.getElapsedSeconds()) + " Minutes.");
+               logger.info("Current transaction : " + activeTransaction.getName()
+                       + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
+            }
+            return false;
+         }
       }
    }
 }

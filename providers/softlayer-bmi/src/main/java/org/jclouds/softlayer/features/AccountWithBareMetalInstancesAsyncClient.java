@@ -47,7 +47,7 @@ public interface AccountWithBareMetalInstancesAsyncClient extends AccountAsyncCl
    public static String LIST_HARDWARE_MASK = "hardware.hardwareStatus;hardware.operatingSystem.passwords;hardware.datacenter;hardware.billingItem";
 
    /**
-    * @see AccountWithBareMetalInstancesClient#listVirtualGuests
+    * @see AccountWithBareMetalInstancesClient#listHardwareServers()
     */
    @GET
    @Path("/SoftLayer_Account/getHardware")

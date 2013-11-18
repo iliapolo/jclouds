@@ -20,10 +20,7 @@
 package org.jclouds.softlayer.features;
 
 import com.google.common.collect.ImmutableSet;
-import org.jclouds.softlayer.domain.HardwareProductOrder;
-import org.jclouds.softlayer.domain.HardwareProductOrderReceipt;
-import org.jclouds.softlayer.domain.HardwareServer;
-import org.jclouds.softlayer.domain.ProductItemPrice;
+import org.jclouds.softlayer.domain.*;
 import org.testng.annotations.Test;
 
 import java.util.Set;
@@ -55,6 +52,12 @@ public class AccountWithBareMetalInstancesClientLiveTest extends BaseSoftLayerBa
    @Test
    public void testCancelService() throws Exception {
       api.getHardwareServerClient().cancelService(16582809);
+   }
+
+   @Test
+   public void testGetActiveTransaction() {
+      Transaction activeTransaction = api.getHardwareServerClient().getActiveTransaction(180032);
+      System.out.println(activeTransaction);
    }
 
    @Test

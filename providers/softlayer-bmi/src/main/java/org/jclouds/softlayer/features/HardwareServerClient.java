@@ -22,6 +22,7 @@ package org.jclouds.softlayer.features;
 import org.jclouds.softlayer.domain.HardwareProductOrder;
 import org.jclouds.softlayer.domain.HardwareProductOrderReceipt;
 import org.jclouds.softlayer.domain.HardwareServer;
+import org.jclouds.softlayer.domain.Transaction;
 
 import java.io.Closeable;
 
@@ -42,6 +43,7 @@ public interface HardwareServerClient {
     * @param id
     *           id of the hardware server
     * @return hardware server or null if not found
+    * @see // TODO add reference to API
     */
    HardwareServer getHardwareServer(long id);
 
@@ -51,6 +53,7 @@ public interface HardwareServerClient {
     * @param id
     *            The id of the billing item to cancel
     * @return true or false
+    * @see // TODO add reference to API
     */
    boolean cancelService(long id);
 
@@ -62,4 +65,14 @@ public interface HardwareServerClient {
     * @see <a href="http://sldn.softlayer.com/reference/services/SoftLayer_Product_Order/placeOrder" />
     */
    HardwareProductOrderReceipt orderHardwareServer(HardwareProductOrder order);
+
+
+   /**
+    * Use this method for placing server orders and additional services orders.
+    *
+    * @return The active transaction a server currently undertakes.
+    * @see <a href=http://sldn.softlayer.com/reference/services/SoftLayer_Hardware_Server/getActiveTransaction"/>
+    */
+
+   Transaction getActiveTransaction(long id);
 }
