@@ -114,11 +114,15 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       logger.debug(">> ordering new hardwareServer domain(%s) hostname(%s)", domainName, name);
       HardwareProductOrderReceipt hardwareProductOrderReceipt = client.getHardwareServerClient().orderHardwareServer(order);
       HardwareServer result = get(hardwareProductOrderReceipt.getOrderDetails().getHardware(), 0);
-      logger.trace("<< virtualGuest(%s)", result.getId());
+      logger.trace("<< hardwareServer(%s)", result.getId());
+
+      logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getId());
+      boolean noMoreTransactions = activeTransactionsTester.apply(result);
+      logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
 
       logger.debug(">> awaiting login details for hardwareServer(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
-      logger.trace("<< virtualGuest(%s) complete(%s)", result.getId(), orderInSystem);
+      logger.trace("<< hardwareServer(%s) complete(%s)", result.getId(), orderInSystem);
 
       checkState(orderInSystem, "order for server %s doesn't have login details within %sms", result,
             Long.toString(serverLoginDelay));
@@ -259,7 +263,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
       @Override
       public boolean apply(HardwareServer server) {
-         checkNotNull(server, "virtual guest was null");
+         checkNotNull(server, "server guest was null");
 
          HardwareServer newGuest = client.getHardwareServerClient().getHardwareServer(server.getId());
          boolean hasBackendIp = newGuest.getPrimaryBackendIpAddress() != null;
