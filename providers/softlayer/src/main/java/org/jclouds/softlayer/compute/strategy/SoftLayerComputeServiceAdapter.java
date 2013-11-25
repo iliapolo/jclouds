@@ -235,6 +235,10 @@ public class SoftLayerComputeServiceAdapter implements
 
       logger.debug(">> canceling service for guest(%s) billingItem(%s)", id, guest.getBillingItemId());
       client.getVirtualGuestClient().cancelService(guest.getBillingItemId());
+
+      logger.debug(">> awaiting transactions for hardwareServer(%s)", guest.getId());
+      boolean noMoreTransactions = activeTransactionsTester.apply(guest);
+      logger.debug(">> hardwareServer(%s) complete(%s)", guest.getId(), noMoreTransactions);
    }
 
    @Override
@@ -299,6 +303,7 @@ public class SoftLayerComputeServiceAdapter implements
             // this means the guest is ready.
             logger.info("Successfully completed all transactions for virtual guest (%s)",
                     guest.getFullyQualifiedDomainName());
+            transaction = null;
             return true;
          }
 

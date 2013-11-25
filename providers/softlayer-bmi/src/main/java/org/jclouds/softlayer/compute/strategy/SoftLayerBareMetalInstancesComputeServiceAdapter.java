@@ -219,16 +219,21 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
    @Override
    public void destroyNode(String id) {
-      HardwareServer guest = getNode(id);
-      if (guest == null)
+      HardwareServer server = getNode(id);
+      if (server == null)
          return;
 
-      if (guest.getBillingItemId() == -1)
+      if (server.getBillingItemId() == -1)
          throw new IllegalStateException(String.format("no billing item for guest(%s) so we cannot cancel the order",
                id));
 
-      logger.debug(">> canceling service for guest(%s) billingItem(%s)", id, guest.getBillingItemId());
-      client.getHardwareServerClient().cancelService(guest.getBillingItemId());
+      logger.debug(">> canceling service for guest(%s) billingItem(%s)", id, server.getBillingItemId());
+      client.getHardwareServerClient().cancelService(server.getBillingItemId());
+
+      logger.debug(">> awaiting transactions for hardwareServer(%s)", server.getId());
+      boolean noMoreTransactions = activeTransactionsTester.apply(server);
+      logger.debug(">> hardwareServer(%s) complete(%s)", server.getId(), noMoreTransactions);
+
    }
 
    @Override
@@ -295,6 +300,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
             // this means the guest is ready.
             logger.info("Successfully completed all transactions for server (%s)",
                     server.getFullyQualifiedDomainName());
+            transaction = null;
             return true;
          }
 
