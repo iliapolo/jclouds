@@ -29,7 +29,7 @@ import org.jclouds.domain.LoginCredentials;
 import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
 import org.jclouds.softlayer.SoftLayerBareMetalInstancesClient;
-import org.jclouds.softlayer.compute.functions.ProductItemToImage;
+import org.jclouds.softlayer.compute.functions.HardwareProductItemToImage;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.jclouds.softlayer.domain.*;
 import org.jclouds.softlayer.reference.SoftLayerConstants;
@@ -173,7 +173,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
          @Override
          public boolean apply(ProductItem input) {
-            return ProductItemToImage.imageId().apply(input).equals(id);
+            return HardwareProductItemToImage.imageId().apply(input).equals(id);
          }
          
       }, null);

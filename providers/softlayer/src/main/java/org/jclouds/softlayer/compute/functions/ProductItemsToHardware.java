@@ -87,21 +87,22 @@ public class ProductItemsToHardware implements Function<Iterable<ProductItem>, H
       double coreSpeed = (cpuMatcher.matches()) ? Double.parseDouble(cpuMatcher.group(cpuMatcher.groupCount())) : DEFAULT_CORE_SPEED;
       int ram = ProductItems.capacity().apply(ramItem).intValue();
 
-      return new HardwareBuilder().ids(hardwareId).processors(ImmutableList.of(new Processor(cores, coreSpeed))).ram(
-               ram)
-               .hypervisor("XenServer")
-               .volumes(
-                  Iterables.transform(filter(items, categoryCodeMatches(diskCategoryRegex)),
-                        new Function<ProductItem, Volume>() {
-                           @Override
-                           public Volume apply(ProductItem item) {
-                              float volumeSize = ProductItems.capacity().apply(item);
-                              return new VolumeImpl(
-                                       item.getId() + "",
-                                       item.getDescription().indexOf(STORAGE_AREA_NETWORK) != -1 ? Volume.Type.SAN : Volume.Type.LOCAL,
-                                       volumeSize, null, categoryCode(FIRST_GUEST_DISK).apply(item), false);
-                           }
-                        })).build();
+      Hardware xenServer = new HardwareBuilder().ids(hardwareId).processors(ImmutableList.of(new Processor(cores, coreSpeed))).ram(
+              ram)
+              .hypervisor("XenServer")
+              .volumes(
+                      Iterables.transform(filter(items, categoryCodeMatches(diskCategoryRegex)),
+                              new Function<ProductItem, Volume>() {
+                                 @Override
+                                 public Volume apply(ProductItem item) {
+                                    float volumeSize = ProductItems.capacity().apply(item);
+                                    return new VolumeImpl(
+                                            item.getId() + "",
+                                            item.getDescription().indexOf(STORAGE_AREA_NETWORK) != -1 ? Volume.Type.SAN : Volume.Type.LOCAL,
+                                            volumeSize, null, categoryCode(FIRST_GUEST_DISK).apply(item), false);
+                                 }
+                              })).build();
+      return xenServer;
    }
 
    /**

@@ -32,10 +32,8 @@ import org.jclouds.domain.Location;
 import org.jclouds.rest.AuthorizationException;
 import org.jclouds.rest.suppliers.MemoizedRetryOnTimeOutButNotOnAuthorizationExceptionSupplier;
 import org.jclouds.softlayer.SoftLayerBareMetalInstancesClient;
-import org.jclouds.softlayer.SoftLayerClient;
 import org.jclouds.softlayer.compute.functions.*;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
-import org.jclouds.softlayer.compute.strategy.SoftLayerBareMetalInstancesComputeServiceAdapter;
 import org.jclouds.softlayer.compute.strategy.SoftLayerBareMetalInstancesComputeServiceAdapter;
 import org.jclouds.softlayer.domain.*;
 import org.jclouds.softlayer.features.AccountClient;
@@ -67,9 +65,9 @@ public class SoftLayerBareMetalInstancesComputeServiceContextModule extends
       bind(new TypeLiteral<Function<HardwareServer, NodeMetadata>>() {
       }).to(HardwareServerToNodeMetaData.class);
       bind(new TypeLiteral<Function<ProductItem, org.jclouds.compute.domain.Image>>() {
-      }).to(ProductItemToImage.class);
+      }).to(HardwareProductItemToImage.class);
       bind(new TypeLiteral<Function<Iterable<ProductItem>, org.jclouds.compute.domain.Hardware>>() {
-      }).to(ProductItemsToHardware.class);
+      }).to(HardwareProductItemsToHardware.class);
       bind(new TypeLiteral<Function<Datacenter, Location>>() {
       }).to(DatacenterToLocation.class);
       bind(TemplateOptions.class).to(SoftLayerTemplateOptions.class);

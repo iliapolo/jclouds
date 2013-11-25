@@ -77,6 +77,8 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapterLiveTest extends Ba
       String group = "foo";
       String name = "node" + new Random().nextInt();
 
+      templateBuilder.imageId("13963").locationId("37473").hardwareId("1922,19");
+
       Template template = templateBuilder.build();
       // test passing custom options
       template.getOptions().as(SoftLayerTemplateOptions.class).domainName("me.org");

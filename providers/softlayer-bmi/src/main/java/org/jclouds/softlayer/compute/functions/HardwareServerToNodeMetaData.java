@@ -72,9 +72,6 @@ public class HardwareServerToNodeMetaData implements Function<HardwareServer, No
       builder.ids(from.getId() + "");
       builder.name(from.getHostname());
       builder.hostname(from.getHostname());
-      if (from.getDatacenter() != null)
-         builder.location(from(locations.get()).firstMatch(
-                 LocationPredicates.idEquals(from.getDatacenter().getId() + "")).orNull());
       builder.group(nodeNamingConvention.groupInUniqueNameOrNull(from.getHostname()));
 
       builder.status(serverStatusToNodeStatus.get(from.getHardwareStatus().getStatus()));
