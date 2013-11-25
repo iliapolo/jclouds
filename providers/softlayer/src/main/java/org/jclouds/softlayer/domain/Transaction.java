@@ -51,7 +51,7 @@ public class Transaction {
       protected double averageDuration;
 
       /**
-       * @see Transaction#getId()
+       * @see org.jclouds.softlayer.domain.Transaction#getId()
        */
       public T id(int id) {
          this.id = id;
@@ -59,7 +59,7 @@ public class Transaction {
       }
 
       /**
-       * @see Transaction#getElapsedSeconds()
+       * @see org.jclouds.softlayer.domain.Transaction#getElapsedSeconds()
        */
       public T elapsedSeconds(int elapsedSeconds) {
          this.elapsedSeconds = elapsedSeconds;
@@ -67,7 +67,7 @@ public class Transaction {
       }
 
       /**
-       * @see Transaction#getName() ()
+       * @see org.jclouds.softlayer.domain.Transaction#getName() ()
        */
       public T name(String name) {
          this.name = name;
@@ -75,7 +75,7 @@ public class Transaction {
       }
 
       /**
-       * @see Transaction#getAverageDuration() ()
+       * @see org.jclouds.softlayer.domain.Transaction#getAverageDuration() ()
        */
       public T averageDuration(double averageDuration) {
          this.averageDuration = averageDuration;

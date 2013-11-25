@@ -68,7 +68,7 @@ public interface HardwareServerClient {
 
 
    /**
-    * Use this method for placing server orders and additional services orders.
+    * Use this method to retrieve information about a server's state.
     *
     * @return The active transaction a server currently undertakes.
     * @see <a href=http://sldn.softlayer.com/reference/services/SoftLayer_Hardware_Server/getActiveTransaction"/>

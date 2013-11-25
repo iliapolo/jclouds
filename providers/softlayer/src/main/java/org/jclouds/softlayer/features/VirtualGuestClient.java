@@ -19,6 +19,7 @@ package org.jclouds.softlayer.features;
 import java.util.Set;
 import org.jclouds.softlayer.domain.ProductOrder;
 import org.jclouds.softlayer.domain.ProductOrderReceipt;
+import org.jclouds.softlayer.domain.Transaction;
 import org.jclouds.softlayer.domain.VirtualGuest;
 
 /**
@@ -116,4 +117,14 @@ public interface VirtualGuestClient {
     *          The ProductOrder used to create the VirtualGust or null if not available
     */
    ProductOrder getOrderTemplate(long id);
+
+   /**
+    * Use this method to retrieve information about a virtual guest's state.
+    *
+    * @return The active transaction a guest currently undertakes.
+    * @see <a href=http://sldn.softlayer.com/reference/services/SoftLayer_Hardware_Server/getActiveTransaction"/>
+    */
+
+   Transaction getActiveTransaction(long id);
+
 }

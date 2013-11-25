@@ -81,9 +81,10 @@ public class SoftLayerComputeServiceAdapterLiveTest extends BaseSoftLayerClientL
       String group = "foo";
       String name = "node" + new Random().nextInt();
 
+      templateBuilder.locationId("37473").hardwareId("1640,2238,13899").imageId("13945");
       Template template = templateBuilder.build();
       // test passing custom options
-      template.getOptions().as(SoftLayerTemplateOptions.class).domainName("me.org");
+      template.getOptions().as(SoftLayerTemplateOptions.class).domainName("elip.org");
 
       guest = adapter.createNodeWithGroupEncodedIntoName(group, name, template);
       assertEquals(guest.getNode().getHostname(), name);

@@ -21,7 +21,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
-import com.google.common.collect.Maps;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Template;
@@ -33,24 +32,20 @@ import org.jclouds.softlayer.SoftLayerBareMetalInstancesClient;
 import org.jclouds.softlayer.compute.functions.ProductItemToImage;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
 import org.jclouds.softlayer.domain.*;
-import org.jclouds.softlayer.reference.HardwareSoftLayerConstants;
+import org.jclouds.softlayer.reference.SoftLayerConstants;
 
 import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.*;
 import static com.google.common.base.Predicates.and;
 import static com.google.common.collect.Iterables.*;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
-import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY;
-import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PORT_SPEED;
-import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY;
+import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.*;
 import static org.jclouds.util.Predicates2.retry;
 
 /**
@@ -91,7 +86,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       this.prices = checkNotNull(prices, "prices");
       this.portSpeed = portSpeed;
       checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
-      this.activeTransactionsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
+      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 100, 1000);
    }
 
    @Override
@@ -277,12 +272,12 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
    public static class HardwareServerHasNoRunningTransactions implements Predicate<HardwareServer> {
 
-      private Map<Integer, Transaction> transactionPerServer = Maps.newHashMap();
+      private Transaction transaction;
 
       private final SoftLayerBareMetalInstancesClient client;
 
       @Resource
-      @Named(HardwareSoftLayerConstants.TRANSACTION_LOGGER)
+      @Named(SoftLayerConstants.TRANSACTION_LOGGER)
       protected Logger logger = Logger.NULL;
 
       @Inject
@@ -294,29 +289,35 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       public boolean apply(@Nullable HardwareServer server) {
 
          Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(server.getId());
-         if (activeTransaction == null && transactionPerServer.get(server.getId()) != null) {
+
+         if (activeTransaction == null && transaction != null) {
             // no current transaction, but a previous transaction was present.
-            // this means the server is ready.
-            transactionPerServer.remove(server.getId());
+            // this means the guest is ready.
+            logger.info("Successfully completed all transactions for server (%s)",
+                    server.getFullyQualifiedDomainName());
             return true;
-         } else {
-            if (activeTransaction == null) {
-               // no current transaction, and no previous transaction.
-               // this means the server has not yet started its transaction process.
-               return false;
-            }
-            Transaction transaction = transactionPerServer.get(server.getId());
-            if (transaction.getId() != activeTransaction.getId()) {
-               // server has moved to a new transaction. save and print
-               Transaction previous = transactionPerServer.get(server.getId());
-               transactionPerServer.put(server.getId(), activeTransaction);
-               logger.info("Successfully completed transaction " + previous.getName() + " in "
-                       + TimeUnit.SECONDS.toMinutes(previous.getElapsedSeconds()) + " Minutes.");
-               logger.info("Current transaction : " + activeTransaction.getName()
-                       + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
-            }
+         }
+
+         if (activeTransaction == null) {
+            // no current transaction, and no previous transaction.
+            // this means the guest has not yet started its transaction process.
             return false;
          }
+
+         if (transaction == null || !transaction.getName().equals(activeTransaction.getName())) {
+            if (transaction != null) {
+               logger.info("Successfully completed transaction " + transaction.getName() + " in "
+                       + transaction.getElapsedSeconds() + " Seconds.");
+            }
+            // server has moved to a new transaction.
+            logger.info("Current transaction : " + activeTransaction.getName()
+                    + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
+         }
+
+         // update transaction data
+         transaction = activeTransaction;
+
+         return false;
       }
    }
 }

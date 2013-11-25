@@ -147,6 +147,12 @@
         <priority value="TRACE" />
         <appender-ref ref="CONSOLE" />
     </category>
+
+    <category name="jclouds.softlayer.transaction">
+        <priority value="DEBUG" />
+        <appender-ref ref="CONSOLE" />
+    </category>
+
     <!-- ======================= -->
     <!-- Setup the Root category -->
     <!-- ======================= -->

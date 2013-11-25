@@ -53,4 +53,16 @@ public interface SoftLayerConstants {
     */
    public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_PRICES = "jclouds.softlayer.virtualguest.prices";
 
+   /**
+    * number of milliseconds to wait for an order to be empty of transactions.
+    */
+   public static final String PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY = "jclouds.softlayer.active-transactions-delay";
+
+   /**
+    * Transaction logger name for logging active transactions of the hardware server.
+    */
+   public static final String TRANSACTION_LOGGER = "jclouds.softlayer.transaction";
+
+
+
 }

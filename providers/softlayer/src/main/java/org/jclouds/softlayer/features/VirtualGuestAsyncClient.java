@@ -25,6 +25,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.MediaType;
 
+import org.jclouds.Fallbacks;
 import org.jclouds.Fallbacks.EmptySetOnNotFoundOr404;
 import org.jclouds.Fallbacks.FalseOnNotFoundOr404;
 import org.jclouds.Fallbacks.NullOnNotFoundOr404;
@@ -37,6 +38,7 @@ import org.jclouds.rest.annotations.RequestFilters;
 import org.jclouds.softlayer.binders.ProductOrderToJson;
 import org.jclouds.softlayer.domain.ProductOrder;
 import org.jclouds.softlayer.domain.ProductOrderReceipt;
+import org.jclouds.softlayer.domain.Transaction;
 import org.jclouds.softlayer.domain.VirtualGuest;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -150,5 +152,14 @@ public interface VirtualGuestAsyncClient {
    @Consumes(MediaType.APPLICATION_JSON)
    @Fallback(NullOnNotFoundOr404.class)
    ListenableFuture<ProductOrder> getOrderTemplate(@PathParam("id") long id);
+
+   /**
+    * @see org.jclouds.softlayer.features.VirtualGuestClient#getActiveTransaction
+    */
+   @GET
+   @Path("/SoftLayer_Virtual_Guest/{id}/getActiveTransaction.json")
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(Fallbacks.NullOnNotFoundOr404.class)
+   ListenableFuture<Transaction> getActiveTransaction(@PathParam("id") long id);
 
 }

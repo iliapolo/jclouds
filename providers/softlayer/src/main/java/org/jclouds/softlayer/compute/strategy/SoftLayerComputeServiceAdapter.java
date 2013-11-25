@@ -16,55 +16,38 @@
  */
 package org.jclouds.softlayer.compute.strategy;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Predicates.and;
-import static com.google.common.collect.Iterables.contains;
-import static com.google.common.collect.Iterables.filter;
-import static com.google.common.collect.Iterables.find;
-import static com.google.common.collect.Iterables.get;
-import static org.jclouds.util.Predicates2.retry;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.matches;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED;
-
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import javax.annotation.Resource;
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSet.Builder;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Template;
 import org.jclouds.compute.reference.ComputeServiceConstants;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.javax.annotation.Nullable;
 import org.jclouds.logging.Logger;
 import org.jclouds.softlayer.SoftLayerClient;
 import org.jclouds.softlayer.compute.functions.ProductItemToImage;
 import org.jclouds.softlayer.compute.options.SoftLayerTemplateOptions;
-import org.jclouds.softlayer.domain.Datacenter;
-import org.jclouds.softlayer.domain.Password;
-import org.jclouds.softlayer.domain.ProductItem;
-import org.jclouds.softlayer.domain.ProductItemPrice;
-import org.jclouds.softlayer.domain.ProductOrder;
-import org.jclouds.softlayer.domain.ProductOrderReceipt;
-import org.jclouds.softlayer.domain.ProductPackage;
-import org.jclouds.softlayer.domain.VirtualGuest;
+import org.jclouds.softlayer.domain.*;
+import org.jclouds.softlayer.reference.SoftLayerConstants;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSet.Builder;
+import javax.annotation.Resource;
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Predicates.and;
+import static com.google.common.collect.Iterables.*;
+import static org.jclouds.softlayer.predicates.ProductItemPredicates.*;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.*;
+import static org.jclouds.util.Predicates2.retry;
 
 /**
  * defines the connection between the {@link SoftLayerClient} implementation and
@@ -82,6 +65,7 @@ public class SoftLayerComputeServiceAdapter implements
    private final SoftLayerClient client;
    private final Supplier<ProductPackage> productPackageSupplier;
    private final Predicate<VirtualGuest> loginDetailsTester;
+   private final Predicate<VirtualGuest> activeTransactionsTester;
    private final long guestLoginDelay;
    private final Pattern cpuPattern;
    private final Pattern disk0Type;
@@ -91,11 +75,13 @@ public class SoftLayerComputeServiceAdapter implements
    @Inject
    public SoftLayerComputeServiceAdapter(SoftLayerClient client,
          VirtualGuestHasLoginDetailsPresent virtualGuestHasLoginDetailsPresent,
+         VirtualGuestHasNoRunningTransactions activeTransactionsTester,
          @Memoized Supplier<ProductPackage> productPackageSupplier, Iterable<ProductItemPrice> prices,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX) String cpuRegex,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE) String disk0Type,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED) float portSpeed,
-         @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY) long guestLoginDelay) {
+         @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY) long guestLoginDelay,
+         @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
       this.client = checkNotNull(client, "client");
       this.guestLoginDelay = guestLoginDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
@@ -106,6 +92,7 @@ public class SoftLayerComputeServiceAdapter implements
       this.portSpeed = portSpeed;
       checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
       this.disk0Type = Pattern.compile(".*" + checkNotNull(disk0Type, "disk0Type") + ".*");
+      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 100, 1000);
    }
 
    @Override
@@ -129,6 +116,10 @@ public class SoftLayerComputeServiceAdapter implements
       ProductOrderReceipt productOrderReceipt = client.getVirtualGuestClient().orderVirtualGuest(order);
       VirtualGuest result = get(productOrderReceipt.getOrderDetails().getVirtualGuests(), 0);
       logger.trace("<< virtualGuest(%s)", result.getId());
+
+      logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getId());
+      boolean noMoreTransactions = activeTransactionsTester.apply(result);
+      logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
 
       logger.debug(">> awaiting login details for virtualGuest(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
@@ -282,4 +273,54 @@ public class SoftLayerComputeServiceAdapter implements
          return hasBackendIp && hasPrimaryIp && hasPasswords;
       }
    }
+
+   public static class VirtualGuestHasNoRunningTransactions implements Predicate<VirtualGuest> {
+
+      private Transaction transaction;
+
+      private final SoftLayerClient client;
+
+      @Resource
+      @Named(SoftLayerConstants.TRANSACTION_LOGGER)
+      protected Logger logger = Logger.NULL;
+
+      @Inject
+      public VirtualGuestHasNoRunningTransactions(SoftLayerClient client) {
+         this.client = checkNotNull(client, "client was null");
+      }
+
+      @Override
+      public boolean apply(@Nullable VirtualGuest guest) {
+
+         Transaction activeTransaction = client.getVirtualGuestClient().getActiveTransaction(guest.getId());
+
+         if (activeTransaction == null && transaction != null) {
+            // no current transaction, but a previous transaction was present.
+            // this means the guest is ready.
+            logger.info("Successfully completed all transactions for virtual guest (%s)",
+                    guest.getFullyQualifiedDomainName());
+            return true;
+         }
+
+         if (activeTransaction == null) {
+            // no current transaction, and no previous transaction.
+            // this means the guest has not yet started its transaction process.
+            return false;
+         }
+
+         if (transaction == null || !transaction.getName().equals(activeTransaction.getName())) {
+            if (transaction != null) {
+               logger.info("Successfully completed transaction " + transaction.getName() + " in "
+                       + transaction.getElapsedSeconds() + " Seconds.");
+            }
+            // guest has moved to a new transaction. save and print
+            logger.info("Current transaction : " + activeTransaction.getName()
+                    + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
+         }
+         transaction = activeTransaction;
+
+         return false;
+      }
+   }
+
 }

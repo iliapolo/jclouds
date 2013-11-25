@@ -55,5 +55,5 @@ public interface HardwareSoftLayerConstants {
    /**
     * Transaction logger name for logging active transactions of the hardware server.
     */
-   public static final String TRANSACTION_LOGGER = "jclouds.softlayer.transaction";
+   public static final String TRANSACTION_LOGGER = "jclouds.softlayer-bmi.transaction";
 }
