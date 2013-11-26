@@ -61,13 +61,14 @@ public class SoftLayerComputeServiceAdapter implements
    @Resource
    @Named(ComputeServiceConstants.COMPUTE_LOGGER)
    protected Logger logger = Logger.NULL;
-
    private final SoftLayerClient client;
+
    private final Supplier<ProductPackage> productPackageSupplier;
    private final Predicate<VirtualGuest> loginDetailsTester;
    private final Predicate<VirtualGuest> activeTransactionsTester;
    private final long guestLoginDelay;
    private final Pattern cpuPattern;
+   private final long hostTransactionsDelay;
    private final Pattern disk0Type;
    private final float portSpeed;
    private final Iterable<ProductItemPrice> prices;
@@ -84,6 +85,7 @@ public class SoftLayerComputeServiceAdapter implements
          @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
       this.client = checkNotNull(client, "client");
       this.guestLoginDelay = guestLoginDelay;
+      this.hostTransactionsDelay = activeTransactionsDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
       checkArgument(guestLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
       this.loginDetailsTester = retry(virtualGuestHasLoginDetailsPresent, guestLoginDelay);
@@ -117,9 +119,13 @@ public class SoftLayerComputeServiceAdapter implements
       VirtualGuest result = get(productOrderReceipt.getOrderDetails().getVirtualGuests(), 0);
       logger.trace("<< virtualGuest(%s)", result.getId());
 
-      logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getId());
+      logger.debug(">> awaiting transactions for virtualGuest(%s)", result.getId());
+      logger.info("Waiting for host " + result.getHostname() + " transactions to complete");
       boolean noMoreTransactions = activeTransactionsTester.apply(result);
-      logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
+      logger.debug(">> virtualGuest(%s) complete(%s)", result.getId(), noMoreTransactions);
+
+      checkState(noMoreTransactions, "order for host %s did not finish its transactions within %sms", result,
+              Long.toString(hostTransactionsDelay));
 
       logger.debug(">> awaiting login details for virtualGuest(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
