@@ -44,8 +44,9 @@ public class HardwareProductItemsToHardware implements Function<Iterable<Product
 
       ProductItem ramAndCoresItem = get(filter(items, categoryCode("server_core")), 0);
       ProductItem volumeItem = get(filter(items, categoryCode("disk0")), 0);
+      ProductItem uplinkItem = get(filter(items, categoryCode("port_speed")), 0);
 
-      String hardwareId = hardwareId().apply(ImmutableList.of(ramAndCoresItem, volumeItem));
+      String hardwareId = hardwareId().apply(ImmutableList.of(ramAndCoresItem, volumeItem, uplinkItem));
 
       return new HardwareBuilder().ids(hardwareId).build();
    }

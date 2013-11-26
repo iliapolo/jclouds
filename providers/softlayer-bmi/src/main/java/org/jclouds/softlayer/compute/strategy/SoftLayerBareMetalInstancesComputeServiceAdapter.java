@@ -41,9 +41,7 @@ import javax.inject.Singleton;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.*;
-import static com.google.common.base.Predicates.and;
 import static com.google.common.collect.Iterables.*;
-import static org.jclouds.softlayer.predicates.ProductItemPredicates.capacity;
 import static org.jclouds.softlayer.predicates.ProductItemPredicates.categoryCode;
 import static org.jclouds.softlayer.reference.HardwareSoftLayerConstants.*;
 import static org.jclouds.util.Predicates2.retry;
@@ -60,12 +58,13 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    @Resource
    @Named(ComputeServiceConstants.COMPUTE_LOGGER)
    protected Logger logger = Logger.NULL;
-
    private final SoftLayerBareMetalInstancesClient client;
+
    private final Supplier<ProductPackage> productPackageSupplier;
    private final Predicate<HardwareServer> loginDetailsTester;
    private final Predicate<HardwareServer> activeTransactionsTester;
    private final long serverLoginDelay;
+   private final long serverTransactionsDelay;
    private final float portSpeed;
    private final Iterable<ProductItemPrice> prices;
 
@@ -80,6 +79,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
       this.client = checkNotNull(client, "client");
       this.serverLoginDelay = serverLoginDelay;
+      this.serverTransactionsDelay = activeTransactionsDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
       checkArgument(serverLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
       this.loginDetailsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
@@ -112,8 +112,12 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       logger.trace("<< hardwareServer(%s)", result.getId());
 
       logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getId());
+      logger.info("Waiting for server " + result.getHostname() + " transactions to complete");
       boolean noMoreTransactions = activeTransactionsTester.apply(result);
       logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
+
+      checkState(noMoreTransactions, "order for server %s did not finish its transactions within %sms", result,
+              Long.toString(serverTransactionsDelay));
 
       logger.debug(">> awaiting login details for hardwareServer(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
@@ -141,9 +145,6 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
          int id = Integer.parseInt(hardwareId);
          result.add(ProductItemPrice.builder().id(id).build());
       }
-      ProductItem uplinkItem = find(productPackageSupplier.get().getItems(),
-            and(capacity(portSpeed), categoryCode("port_speed")));
-      result.add(get(uplinkItem.getPrices(), 0));
       result.addAll(prices);
       return result.build();
    }
@@ -155,7 +156,9 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       Builder<Iterable<ProductItem>> result = ImmutableSet.builder();
       for (ProductItem cpuAndRamItem : filter(items, categoryCode("server_core"))) {
          for (ProductItem firsDiskItem : filter(items, categoryCode("disk0"))) {
-            result.add(ImmutableSet.of(cpuAndRamItem, firsDiskItem));
+            for (ProductItem uplinkItem : filter(items, categoryCode("port_speed"))) {
+               result.add(ImmutableSet.of(cpuAndRamItem, firsDiskItem, uplinkItem));
+            }
          }
       }
       return result.build();
@@ -293,13 +296,37 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       @Override
       public boolean apply(@Nullable HardwareServer server) {
 
-         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(server.getId());
+         Set<HardwareServer> hardwareServers = client.getAccountWithBareMetalInstancesClient().listHardwareServers();
+         if (hardwareServers == null) {
+            logger.debug(">> cannot find any hardware servers");
+            // no servers at all.
+            return false;
+         }
+
+         HardwareServer actualServer = null;
+         for (HardwareServer discoveredServer : hardwareServers) {
+            if (discoveredServer.getHostname().equals(server.getHostname())) {
+               // our server is discovered
+               actualServer = discoveredServer;
+               break;
+            }
+         }
+         if (actualServer == null) {
+            logger.debug(">> cannot find any hardware server with hostname(%s)", server.getHostname());
+            // our server is not yet discovered by softlayer
+            return false;
+         } else {
+            logger.debug(">> found hardware server with hostname(%s) and id(%s)", actualServer.getHostname(),
+                    actualServer.getId());
+         }
+
+         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(actualServer.getId());
 
          if (activeTransaction == null && transaction != null) {
             // no current transaction, but a previous transaction was present.
             // this means the guest is ready.
             logger.info("Successfully completed all transactions for server (%s)",
-                    server.getFullyQualifiedDomainName());
+                    actualServer.getFullyQualifiedDomainName());
             transaction = null;
             return true;
          }
