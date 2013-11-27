@@ -59,10 +59,12 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    @Named(ComputeServiceConstants.COMPUTE_LOGGER)
    protected Logger logger = Logger.NULL;
    private final SoftLayerBareMetalInstancesClient client;
-
    private final Supplier<ProductPackage> productPackageSupplier;
+
    private final Predicate<HardwareServer> loginDetailsTester;
    private final Predicate<HardwareServer> activeTransactionsTester;
+   private final Predicate<HardwareProductOrderReceipt> orderApprovedTester;
+   private final long orderApprovedDelay;
    private final long serverLoginDelay;
    private final long serverTransactionsDelay;
    private final float portSpeed;
@@ -72,21 +74,25 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    public SoftLayerBareMetalInstancesComputeServiceAdapter(SoftLayerBareMetalInstancesClient client,
                                                            HardwareServerHasLoginDetailsPresent serverHasLoginDetailsPresent,
                                                            HardwareServerHasNoRunningTransactions activeTransactionsTester,
+                                                           HardwareProductOrderApproved hardwareProductOrderApproved,
                                                            @Memoized Supplier<ProductPackage> productPackageSupplier,
                                                            Iterable<ProductItemPrice> prices,
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PORT_SPEED) float portSpeed,
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY) long serverLoginDelay,
-                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay,
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_HARDWARE_ORDER_APPROVED_DELAY) long hardwareApprovedDelay) {
       this.client = checkNotNull(client, "client");
       this.serverLoginDelay = serverLoginDelay;
       this.serverTransactionsDelay = activeTransactionsDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
+      this.orderApprovedTester = retry(hardwareProductOrderApproved, hardwareApprovedDelay, 5000, 10000);
+      this.orderApprovedDelay = hardwareApprovedDelay;
       checkArgument(serverLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
       this.loginDetailsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
       this.prices = checkNotNull(prices, "prices");
       this.portSpeed = portSpeed;
       checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
-      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 100, 1000);
+      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 5000, 10000);
    }
 
    @Override
@@ -108,16 +114,30 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
       logger.debug(">> ordering new hardwareServer domain(%s) hostname(%s)", domainName, name);
       HardwareProductOrderReceipt hardwareProductOrderReceipt = client.getHardwareServerClient().orderHardwareServer(order);
+
+      logger.debug(">> awaiting order approval for hardwareServer(%s)", name);
+      logger.info("Waiting for hardwareServer(%s) order to be approved", name);
+      boolean orderApproved = orderApprovedTester.apply(hardwareProductOrderReceipt);
+      logger.debug(">> hardwareServer(%s) order approval result(%s)", name, orderApproved);
+
+      checkState(orderApproved, "order for server %s did not finish its transactions within %sms", name,
+              Long.toString(orderApprovedDelay));
+
       HardwareServer result = get(hardwareProductOrderReceipt.getOrderDetails().getHardware(), 0);
       logger.trace("<< hardwareServer(%s)", result.getId());
 
-      logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getId());
+      logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getHostname());
       logger.info("Waiting for server " + result.getHostname() + " transactions to complete");
       boolean noMoreTransactions = activeTransactionsTester.apply(result);
       logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
 
       checkState(noMoreTransactions, "order for server %s did not finish its transactions within %sms", result,
               Long.toString(serverTransactionsDelay));
+
+      result = find(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
+              SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(result.getHostname()));
+
+      checkNotNull(result, "result server is null");
 
       logger.debug(">> awaiting login details for hardwareServer(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
@@ -268,11 +288,11 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       public boolean apply(HardwareServer server) {
          checkNotNull(server, "server guest was null");
 
-         HardwareServer newGuest = client.getHardwareServerClient().getHardwareServer(server.getId());
-         boolean hasBackendIp = newGuest.getPrimaryBackendIpAddress() != null;
-         boolean hasPrimaryIp = newGuest.getPrimaryIpAddress() != null;
-         boolean hasPasswords = newGuest.getOperatingSystem() != null
-               && newGuest.getOperatingSystem().getPasswords().size() > 0;
+         HardwareServer newServer = client.getHardwareServerClient().getHardwareServer(server.getId());
+         boolean hasBackendIp = newServer.getPrimaryBackendIpAddress() != null;
+         boolean hasPrimaryIp = newServer.getPrimaryIpAddress() != null;
+         boolean hasPasswords = newServer.getOperatingSystem() != null
+               && newServer.getOperatingSystem().getPasswords().size() > 0;
 
          return hasBackendIp && hasPrimaryIp && hasPasswords;
       }
@@ -294,30 +314,14 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       }
 
       @Override
-      public boolean apply(@Nullable HardwareServer server) {
+      public boolean apply(final @Nullable HardwareServer server) {
 
-         Set<HardwareServer> hardwareServers = client.getAccountWithBareMetalInstancesClient().listHardwareServers();
-         if (hardwareServers == null) {
-            logger.debug(">> cannot find any hardware servers");
-            // no servers at all.
-            return false;
-         }
+         HardwareServer actualServer = find(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
+                 SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(server.getHostname()));
 
-         HardwareServer actualServer = null;
-         for (HardwareServer discoveredServer : hardwareServers) {
-            if (discoveredServer.getHostname().equals(server.getHostname())) {
-               // our server is discovered
-               actualServer = discoveredServer;
-               break;
-            }
-         }
          if (actualServer == null) {
-            logger.debug(">> cannot find any hardware server with hostname(%s)", server.getHostname());
-            // our server is not yet discovered by softlayer
+            logger.debug(">> could not find server with name(%s)", server.getHostname());
             return false;
-         } else {
-            logger.debug(">> found hardware server with hostname(%s) and id(%s)", actualServer.getHostname(),
-                    actualServer.getId());
          }
 
          Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(actualServer.getId());
@@ -352,5 +356,34 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
          return false;
       }
+   }
+
+   public static class HardwareProductOrderApproved implements Predicate<HardwareProductOrderReceipt> {
+
+      private final SoftLayerBareMetalInstancesClient client;
+
+      @Inject
+      public HardwareProductOrderApproved(SoftLayerBareMetalInstancesClient client) {
+         this.client = checkNotNull(client, "client was null");
+      }
+
+      @Override
+      public boolean apply(@Nullable HardwareProductOrderReceipt input) {
+
+         BillingOrder orderStatus = client.getAccountWithBareMetalInstancesClient()
+                 .getBillingOrder(input.getOrderId());
+         return BillingOrder.Status.APPROVED.equals(orderStatus.getStatus());
+      }
+   }
+
+   static Predicate<HardwareServer> hostNamePredicate(final String hostName) {
+
+      return new Predicate<HardwareServer>() {
+         @Override
+         public boolean apply(@Nullable HardwareServer input) {
+            return input.getHostname().equals(hostName);
+         }
+      };
+
    }
 }

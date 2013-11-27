@@ -22,11 +22,13 @@ import org.jclouds.http.filters.BasicAuthentication;
 import org.jclouds.rest.annotations.Fallback;
 import org.jclouds.rest.annotations.QueryParams;
 import org.jclouds.rest.annotations.RequestFilters;
+import org.jclouds.softlayer.domain.BillingOrder;
 import org.jclouds.softlayer.domain.HardwareServer;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.core.MediaType;
 import java.util.Set;
 
@@ -55,5 +57,14 @@ public interface AccountWithBareMetalInstancesAsyncClient extends AccountAsyncCl
    @Consumes(MediaType.APPLICATION_JSON)
    @Fallback(Fallbacks.EmptySetOnNotFoundOr404.class)
    ListenableFuture<Set<HardwareServer>> listHardwareServers();
+
+   /**
+    * @see AccountWithBareMetalInstancesClient#getBillingOrder(int)
+    */
+   @GET
+   @Path("/SoftLayer_Billing_Order/{orderId}")
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(Fallbacks.NullOnNotFoundOr404.class)
+   ListenableFuture<BillingOrder> getBillingOrder(@PathParam("orderId") int orderId);
 
 }

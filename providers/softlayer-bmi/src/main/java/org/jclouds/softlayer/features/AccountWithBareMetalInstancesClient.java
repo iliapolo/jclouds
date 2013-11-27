@@ -16,6 +16,7 @@
  */
 package org.jclouds.softlayer.features;
 
+import org.jclouds.softlayer.domain.BillingOrder;
 import org.jclouds.softlayer.domain.HardwareServer;
 
 import java.util.Set;
@@ -37,5 +38,10 @@ public interface AccountWithBareMetalInstancesClient extends AccountClient {
     */
    Set<HardwareServer> listHardwareServers();
 
-
+   /**
+    *
+    * @param orderId the billing order id.
+    * @return an order's statuses so far.
+    */
+   BillingOrder getBillingOrder(int orderId);
 }

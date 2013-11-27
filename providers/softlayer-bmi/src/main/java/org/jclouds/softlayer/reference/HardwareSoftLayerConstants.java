@@ -51,9 +51,13 @@ public interface HardwareSoftLayerConstants {
     */
    public static final String PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY = "jclouds.softlayer.baremetal.active-transactions-delay";
 
+   /**
+    * Order logger for reporting order statuses.
+    */
+   public static final String ORDER_LOGGER = "jclouds.softlayer.order";
 
    /**
-    * Transaction logger name for logging active transactions of the hardware server.
+    * number of milliseconds to wait for an order to be approved.
     */
-   public static final String TRANSACTION_LOGGER = "jclouds.softlayer-bmi.transaction";
+   public static final String PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_HARDWARE_ORDER_APPROVED_DELAY = "jclouds.softlayer.baremetal.order-approved-delay";
 }
