@@ -53,6 +53,7 @@ public class HardwareServerHasNoRunningTransactionsTest {
       tester = retry(hardwareServerHasNoRunningTransactions , 1000 * 60);
    }
 
+   @Test(enabled = false)
    public void testApply() {
 
       HardwareServer server = HardwareServer.builder().id(123).build();

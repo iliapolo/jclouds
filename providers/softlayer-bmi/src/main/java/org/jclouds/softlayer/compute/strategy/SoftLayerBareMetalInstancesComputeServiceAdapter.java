@@ -16,6 +16,7 @@
  */
 package org.jclouds.softlayer.compute.strategy;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
@@ -139,6 +140,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
       checkNotNull(result, "result server is null");
 
+      logger.info("Waiting for server " + result.getHostname() + " login credentials");
       logger.debug(">> awaiting login details for hardwareServer(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
       logger.trace("<< hardwareServer(%s) complete(%s)", result.getId(), orderInSystem);
@@ -150,7 +152,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       Password pw = get(result.getOperatingSystem().getPasswords(), 0);
       return new NodeAndInitialCredentials<HardwareServer>(result, result.getId() + "", LoginCredentials.builder()
               .user(pw.getUsername())
-              .privateKey(pw.getPassword())
+              .password(pw.getPassword())
               .build());
    }
 
@@ -316,21 +318,21 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       @Override
       public boolean apply(final @Nullable HardwareServer server) {
 
-         HardwareServer actualServer = find(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
+         Optional<HardwareServer> actualServer = tryFind(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
                  SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(server.getHostname()));
 
-         if (actualServer == null) {
+         if (!actualServer.isPresent()) {
             logger.debug(">> could not find server with name(%s)", server.getHostname());
             return false;
          }
 
-         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(actualServer.getId());
+         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(actualServer.get().getId());
 
          if (activeTransaction == null && transaction != null) {
             // no current transaction, but a previous transaction was present.
             // this means the guest is ready.
             logger.info("Successfully completed all transactions for server (%s)",
-                    actualServer.getFullyQualifiedDomainName());
+                    actualServer.get());
             transaction = null;
             return true;
          }
