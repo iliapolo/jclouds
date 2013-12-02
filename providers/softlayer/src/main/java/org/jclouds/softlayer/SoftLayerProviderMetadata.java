@@ -16,17 +16,16 @@
  */
 package org.jclouds.softlayer;
 
-import static org.jclouds.compute.config.ComputeServiceProperties.TEMPLATE;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.*;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
+import org.jclouds.providers.ProviderMetadata;
+import org.jclouds.providers.internal.BaseProviderMetadata;
 
 import java.net.URI;
 import java.util.Properties;
 
-import org.jclouds.providers.ProviderMetadata;
-import org.jclouds.providers.internal.BaseProviderMetadata;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableSet;
+import static org.jclouds.compute.config.ComputeServiceProperties.TEMPLATE;
+import static org.jclouds.softlayer.reference.SoftLayerConstants.*;
 
 /**
  * Implementation of {@link org.jclouds.types.ProviderMetadata} for SoftLayer.
@@ -54,7 +53,8 @@ public class SoftLayerProviderMetadata extends BaseProviderMetadata {
    public static Properties defaultProperties() {
       Properties properties = new Properties();
       properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY, "" + 60 * 60 * 1000);
-      properties.setProperty(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY, "" + 60 * 60 * 1000);
+      properties.setProperty(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_ENDED_DELAY, "" + 60 * 60 * 1000);
+      properties.setProperty(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_STARTED_DELAY, "" + 60 * 60 * 1000);
       properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_PACKAGE_NAME, "Cloud Server");
       // ex: for private (ex. don't share hardware) use "Private [0-9]+ x ([.0-9]+) GHz Core[s]?"
       // ex: for private and public use ".*[0-9]+ x ([.0-9]+) GHz Core[s]?"

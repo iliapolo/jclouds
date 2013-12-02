@@ -85,4 +85,14 @@ public interface HardwareServerAsyncClient {
    @Consumes(MediaType.APPLICATION_JSON)
    @Fallback(Fallbacks.NullOnNotFoundOr404.class)
    ListenableFuture<Transaction> getActiveTransaction(@PathParam("id") long id);
+
+   /**
+    * @see org.jclouds.softlayer.features.HardwareServerClient#getLastTransaction
+    */
+   @GET
+   @Path("/SoftLayer_Hardware_Server/{id}/getLastTransaction.json")
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(Fallbacks.NullOnNotFoundOr404.class)
+   ListenableFuture<Transaction> getLastTransaction(@PathParam("id") long id);
+
 }

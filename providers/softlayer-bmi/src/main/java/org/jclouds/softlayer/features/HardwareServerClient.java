@@ -68,11 +68,18 @@ public interface HardwareServerClient {
 
 
    /**
-    * Use this method to retrieve information about a server's state.
+    * Use this method to retrieve information about a server's active transaction.
     *
     * @return The active transaction a server currently undertakes.
     * @see <a href=http://sldn.softlayer.com/reference/services/SoftLayer_Hardware_Server/getActiveTransaction"/>
     */
-
    Transaction getActiveTransaction(long id);
+
+   /**
+    * Use this method to retrieve information about a server's last transaction.
+    *
+    * @return The last completed transaction a server executed.
+    * @see <a href=http://sldn.softlayer.com/reference/services/SoftLayer_Hardware_Server/getLastTransaction"/>
+    */
+   Transaction getLastTransaction(long id);
 }

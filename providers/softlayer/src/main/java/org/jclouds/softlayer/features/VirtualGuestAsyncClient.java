@@ -16,15 +16,7 @@
  */
 package org.jclouds.softlayer.features;
 
-import java.util.Set;
-
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.MediaType;
-
+import com.google.common.util.concurrent.ListenableFuture;
 import org.jclouds.Fallbacks;
 import org.jclouds.Fallbacks.EmptySetOnNotFoundOr404;
 import org.jclouds.Fallbacks.FalseOnNotFoundOr404;
@@ -41,7 +33,9 @@ import org.jclouds.softlayer.domain.ProductOrderReceipt;
 import org.jclouds.softlayer.domain.Transaction;
 import org.jclouds.softlayer.domain.VirtualGuest;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import java.util.Set;
 
 /**
  * Provides asynchronous access to VirtualGuest via their REST API.
@@ -161,5 +155,15 @@ public interface VirtualGuestAsyncClient {
    @Consumes(MediaType.APPLICATION_JSON)
    @Fallback(Fallbacks.NullOnNotFoundOr404.class)
    ListenableFuture<Transaction> getActiveTransaction(@PathParam("id") long id);
+
+   /**
+    * @see org.jclouds.softlayer.features.VirtualGuestClient#getLastTransaction
+    */
+   @GET
+   @Path("/SoftLayer_Virtual_Guest/{id}/getLastTransaction.json")
+   @Consumes(MediaType.APPLICATION_JSON)
+   @Fallback(Fallbacks.NullOnNotFoundOr404.class)
+   ListenableFuture<Transaction> getLastTransaction(@PathParam("id") long id);
+
 
 }

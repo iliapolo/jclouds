@@ -16,11 +16,12 @@
  */
 package org.jclouds.softlayer.features;
 
-import java.util.Set;
 import org.jclouds.softlayer.domain.ProductOrder;
 import org.jclouds.softlayer.domain.ProductOrderReceipt;
 import org.jclouds.softlayer.domain.Transaction;
 import org.jclouds.softlayer.domain.VirtualGuest;
+
+import java.util.Set;
 
 /**
  * Provides synchronous access to VirtualGuest.
@@ -127,4 +128,11 @@ public interface VirtualGuestClient {
 
    Transaction getActiveTransaction(long id);
 
+   /**
+    * Use this method to retrieve information about a guest's last transaction.
+    *
+    * @return The last completed transaction a server executed.
+    * @see <a href="http://sldn.softlayer.com/reference/services/SoftLayer_Virtual_Guest/getLastTransaction"/>
+    */
+   Transaction getLastTransaction(long id);
 }

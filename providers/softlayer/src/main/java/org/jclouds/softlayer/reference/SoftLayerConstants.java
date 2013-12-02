@@ -56,7 +56,12 @@ public interface SoftLayerConstants {
    /**
     * number of milliseconds to wait for an order to be empty of transactions.
     */
-   public static final String PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY = "jclouds.softlayer.active-transactions-delay";
+   public static final String PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_ENDED_DELAY = "jclouds.softlayer.active-transactions-ended-delay";
+
+   /**
+    * number of milliseconds to wait for an order to start its transactions.
+    */
+   public static final String PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_STARTED_DELAY = "jclouds.softlayer.active-transactions-started-delay";
 
    /**
     * Transaction logger name for logging active transactions of the hardware server.

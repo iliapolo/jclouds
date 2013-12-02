@@ -21,6 +21,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Maps;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceAdapter;
@@ -39,6 +40,7 @@ import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -65,10 +67,12 @@ public class SoftLayerComputeServiceAdapter implements
 
    private final Supplier<ProductPackage> productPackageSupplier;
    private final Predicate<VirtualGuest> loginDetailsTester;
-   private final Predicate<VirtualGuest> activeTransactionsTester;
+   private final Predicate<VirtualGuest> guestHasNoActiveTransactionsTester;
+   private final Predicate<VirtualGuest> guestHasActiveTransactionsTester;
    private final long guestLoginDelay;
    private final Pattern cpuPattern;
-   private final long hostTransactionsDelay;
+   private final long transactionsEndedDelay;
+   private final long transactionsStartedDelay;
    private final Pattern disk0Type;
    private final float portSpeed;
    private final Iterable<ProductItemPrice> prices;
@@ -76,16 +80,19 @@ public class SoftLayerComputeServiceAdapter implements
    @Inject
    public SoftLayerComputeServiceAdapter(SoftLayerClient client,
          VirtualGuestHasLoginDetailsPresent virtualGuestHasLoginDetailsPresent,
-         VirtualGuestHasNoRunningTransactions activeTransactionsTester,
+         VirtualGuestHasNoRunningTransactions guestHasNoActiveTransactionsTester,
+         VirtualGuestStartedTransactions guestHasActiveTransactionsTester,
          @Memoized Supplier<ProductPackage> productPackageSupplier, Iterable<ProductItemPrice> prices,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX) String cpuRegex,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE) String disk0Type,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED) float portSpeed,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY) long guestLoginDelay,
-         @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay) {
+         @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_ENDED_DELAY) long transactionsEndedDelay,
+         @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_STARTED_DELAY) long transactionsStartedDelay) {
       this.client = checkNotNull(client, "client");
       this.guestLoginDelay = guestLoginDelay;
-      this.hostTransactionsDelay = activeTransactionsDelay;
+      this.transactionsStartedDelay = transactionsStartedDelay;
+      this.transactionsEndedDelay = transactionsEndedDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
       checkArgument(guestLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
       this.loginDetailsTester = retry(virtualGuestHasLoginDetailsPresent, guestLoginDelay);
@@ -94,7 +101,8 @@ public class SoftLayerComputeServiceAdapter implements
       this.portSpeed = portSpeed;
       checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
       this.disk0Type = Pattern.compile(".*" + checkNotNull(disk0Type, "disk0Type") + ".*");
-      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 100, 1000);
+      this.guestHasNoActiveTransactionsTester = retry(guestHasNoActiveTransactionsTester, transactionsEndedDelay, 100, 1000);
+      this.guestHasActiveTransactionsTester = retry(guestHasActiveTransactionsTester, transactionsStartedDelay, 100, 1000);
    }
 
    @Override
@@ -119,13 +127,19 @@ public class SoftLayerComputeServiceAdapter implements
       VirtualGuest result = get(productOrderReceipt.getOrderDetails().getVirtualGuests(), 0);
       logger.trace("<< virtualGuest(%s)", result.getId());
 
-      logger.debug(">> awaiting transactions for virtualGuest(%s)", result.getId());
-      logger.info("Waiting for host " + result.getHostname() + " transactions to complete");
-      boolean noMoreTransactions = activeTransactionsTester.apply(result);
-      logger.debug(">> virtualGuest(%s) complete(%s)", result.getId(), noMoreTransactions);
+      logger.debug(">> awaiting for transactions on guest(%s) to start", result.getHostname());
+      boolean guestHasStartedTransactions = guestHasActiveTransactionsTester.apply(result);
+      logger.debug(">> virtualGuest(%s) has started transactions(%s)", result.getId(), guestHasStartedTransactions);
+
+      checkState(guestHasStartedTransactions, "order for host %s did not start its transactions within %sms", result,
+              Long.toString(transactionsStartedDelay));
+
+      logger.debug(">> awaiting for transactions on guest (%s) to complete", result.getId());
+      boolean noMoreTransactions = guestHasNoActiveTransactionsTester.apply(result);
+      logger.debug(">> virtualGuest(%s) completed transactions(%s)", result.getId(), noMoreTransactions);
 
       checkState(noMoreTransactions, "order for host %s did not finish its transactions within %sms", result,
-              Long.toString(hostTransactionsDelay));
+              Long.toString(transactionsEndedDelay));
 
       logger.debug(">> awaiting login details for virtualGuest(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
@@ -242,8 +256,15 @@ public class SoftLayerComputeServiceAdapter implements
       logger.debug(">> canceling service for guest(%s) billingItem(%s)", id, guest.getBillingItemId());
       client.getVirtualGuestClient().cancelService(guest.getBillingItemId());
 
+      logger.debug(">> awaiting for transactions on guest(%s) to start", guest.getHostname());
+      boolean guestHasStartedTransactions = guestHasActiveTransactionsTester.apply(guest);
+      logger.debug(">> virtualGuest(%s) has started transactions(%s)", guest.getId(), guestHasStartedTransactions);
+
+      checkState(guestHasStartedTransactions, "order for host %s did not start its transactions within %sms", guest,
+              Long.toString(transactionsStartedDelay));
+
       logger.debug(">> awaiting transactions for hardwareServer(%s)", guest.getId());
-      boolean noMoreTransactions = activeTransactionsTester.apply(guest);
+      boolean noMoreTransactions = guestHasNoActiveTransactionsTester.apply(guest);
       logger.debug(">> hardwareServer(%s) complete(%s)", guest.getId(), noMoreTransactions);
    }
 
@@ -286,7 +307,7 @@ public class SoftLayerComputeServiceAdapter implements
 
    public static class VirtualGuestHasNoRunningTransactions implements Predicate<VirtualGuest> {
 
-      private Transaction transaction;
+      private Map<VirtualGuest, Transaction> lastTransactionPerGuest = Maps.newConcurrentMap();
 
       private final SoftLayerClient client;
 
@@ -301,36 +322,43 @@ public class SoftLayerComputeServiceAdapter implements
 
       @Override
       public boolean apply(@Nullable VirtualGuest guest) {
-
          Transaction activeTransaction = client.getVirtualGuestClient().getActiveTransaction(guest.getId());
+         if (activeTransaction != null) {
+            Transaction previous = lastTransactionPerGuest.get(guest);
+            if (previous != null && !previous.getName().equals(activeTransaction.getName())) {
+               logger.info("Successfully completed transaction %s in %s seconds.", previous.getName(), previous.getElapsedSeconds());
+               logger.info("Current transaction is %s. Average completion time is %s minutes.",
+                       activeTransaction.getName(), activeTransaction.getAverageDuration());
+            }
 
-         if (activeTransaction == null && transaction != null) {
-            // no current transaction, but a previous transaction was present.
-            // this means the guest is ready.
-            logger.info("Successfully completed all transactions for virtual guest (%s)",
-                    guest.getFullyQualifiedDomainName());
-            transaction = null;
-            return true;
-         }
-
-         if (activeTransaction == null) {
-            // no current transaction, and no previous transaction.
-            // this means the guest has not yet started its transaction process.
+            lastTransactionPerGuest.put(guest, activeTransaction);
             return false;
          }
+         lastTransactionPerGuest.remove(guest);
+         return true;
+      }
+   }
 
-         if (transaction == null || !transaction.getName().equals(activeTransaction.getName())) {
-            if (transaction != null) {
-               logger.info("Successfully completed transaction " + transaction.getName() + " in "
-                       + transaction.getElapsedSeconds() + " Seconds.");
-            }
-            // guest has moved to a new transaction. save and print
-            logger.info("Current transaction : " + activeTransaction.getName()
-                    + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
+   public static class VirtualGuestStartedTransactions implements Predicate<VirtualGuest> {
+
+      private final SoftLayerClient client;
+
+      @Resource
+      @Named(SoftLayerConstants.TRANSACTION_LOGGER)
+      protected Logger logger = Logger.NULL;
+
+      @Inject
+      public VirtualGuestStartedTransactions(SoftLayerClient client) {
+         this.client = checkNotNull(client, "client was null");
+      }
+
+      @Override
+      public boolean apply(@Nullable VirtualGuest guest) {
+         boolean result = client.getVirtualGuestClient().getActiveTransaction(guest.getId()) != null;
+         if (!result) {
+            logger.debug(">> guest(%s) has not started any transactions yet", guest.getHostname());
          }
-         transaction = activeTransaction;
-
-         return false;
+         return result;
       }
    }
 

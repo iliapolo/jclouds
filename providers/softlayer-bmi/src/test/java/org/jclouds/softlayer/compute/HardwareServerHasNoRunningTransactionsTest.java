@@ -29,10 +29,11 @@ import org.jclouds.softlayer.domain.Transaction;
 import org.jclouds.softlayer.features.*;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.jclouds.util.Predicates2.retry;
 
 import java.io.IOException;
 import java.util.Random;
+
+import static org.jclouds.util.Predicates2.retry;
 
 /**
  * Test functionality of {@code HardwareServerHasNoRunningTransactions}
@@ -98,6 +99,11 @@ public class HardwareServerHasNoRunningTransactionsTest {
                  .elapsedSeconds(new Random().nextInt())
                  .build();
 
+      }
+
+      @Override
+      public Transaction getLastTransaction(long id) {
+         throw new UnsupportedOperationException();
       }
    }
 

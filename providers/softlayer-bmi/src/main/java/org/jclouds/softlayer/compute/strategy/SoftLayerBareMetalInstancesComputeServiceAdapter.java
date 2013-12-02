@@ -16,12 +16,12 @@
  */
 package org.jclouds.softlayer.compute.strategy;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
+import com.google.common.collect.Maps;
 import org.jclouds.collect.Memoized;
 import org.jclouds.compute.ComputeServiceAdapter;
 import org.jclouds.compute.domain.Template;
@@ -39,6 +39,7 @@ import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.*;
@@ -61,39 +62,41 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
    protected Logger logger = Logger.NULL;
    private final SoftLayerBareMetalInstancesClient client;
    private final Supplier<ProductPackage> productPackageSupplier;
-
    private final Predicate<HardwareServer> loginDetailsTester;
-   private final Predicate<HardwareServer> activeTransactionsTester;
-   private final Predicate<HardwareProductOrderReceipt> orderApprovedTester;
-   private final long orderApprovedDelay;
+
+   private final Predicate<HardwareServer> serverHasNoActiveTransactionsTester;
+   private final Predicate<HardwareServer> serverHasActiveTransactionsTester;
+   private final Predicate<HardwareProductOrderReceipt> orderApprovedAndServerIsDiscoveredTester;
+   private final long activeTransactionsStartedDelay;
+   private final long orderApprovedAndServerIsDiscoveredDelay;
    private final long serverLoginDelay;
    private final long serverTransactionsDelay;
-   private final float portSpeed;
    private final Iterable<ProductItemPrice> prices;
 
    @Inject
    public SoftLayerBareMetalInstancesComputeServiceAdapter(SoftLayerBareMetalInstancesClient client,
                                                            HardwareServerHasLoginDetailsPresent serverHasLoginDetailsPresent,
-                                                           HardwareServerHasNoRunningTransactions activeTransactionsTester,
-                                                           HardwareProductOrderApproved hardwareProductOrderApproved,
+                                                           HardwareServerHasNoRunningTransactions serverHasNoActiveTransactionsTester,
+                                                           HardwareServerStartedTransactions serverHasActiveTransactionsTester,
+                                                           HardwareProductOrderApprovedAndServerIsPresent hardwareProductOrderApprovedAndServerIsPresent,
                                                            @Memoized Supplier<ProductPackage> productPackageSupplier,
                                                            Iterable<ProductItemPrice> prices,
-                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_PORT_SPEED) float portSpeed,
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_LOGIN_DETAILS_DELAY) long serverLoginDelay,
-                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY) long activeTransactionsDelay,
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_ENDED_DELAY) long activeTransactionsEndedDelay,
+                                                           @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_STARTED_DELAY) long activeTransactionsStartedDelay,
                                                            @Named(PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_HARDWARE_ORDER_APPROVED_DELAY) long hardwareApprovedDelay) {
       this.client = checkNotNull(client, "client");
       this.serverLoginDelay = serverLoginDelay;
-      this.serverTransactionsDelay = activeTransactionsDelay;
+      this.serverTransactionsDelay = activeTransactionsEndedDelay;
       this.productPackageSupplier = checkNotNull(productPackageSupplier, "productPackageSupplier");
-      this.orderApprovedTester = retry(hardwareProductOrderApproved, hardwareApprovedDelay, 5000, 10000);
-      this.orderApprovedDelay = hardwareApprovedDelay;
+      this.orderApprovedAndServerIsDiscoveredTester = retry(hardwareProductOrderApprovedAndServerIsPresent, hardwareApprovedDelay, 5000, 10000);
+      this.orderApprovedAndServerIsDiscoveredDelay = hardwareApprovedDelay;
+      this.activeTransactionsStartedDelay = activeTransactionsStartedDelay;
+      this.serverHasActiveTransactionsTester = retry(serverHasActiveTransactionsTester, activeTransactionsStartedDelay, 5000, 10000);
       checkArgument(serverLoginDelay > 500, "guestOrderDelay must be in milliseconds and greater than 500");
       this.loginDetailsTester = retry(serverHasLoginDetailsPresent, serverLoginDelay);
       this.prices = checkNotNull(prices, "prices");
-      this.portSpeed = portSpeed;
-      checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
-      this.activeTransactionsTester = retry(activeTransactionsTester, activeTransactionsDelay, 5000, 10000);
+      this.serverHasNoActiveTransactionsTester = retry(serverHasNoActiveTransactionsTester, activeTransactionsEndedDelay, 5000, 10000);
    }
 
    @Override
@@ -117,30 +120,33 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       HardwareProductOrderReceipt hardwareProductOrderReceipt = client.getHardwareServerClient().orderHardwareServer(order);
 
       logger.debug(">> awaiting order approval for hardwareServer(%s)", name);
-      logger.info("Waiting for hardwareServer(%s) order to be approved", name);
-      boolean orderApproved = orderApprovedTester.apply(hardwareProductOrderReceipt);
+      boolean orderApproved = orderApprovedAndServerIsDiscoveredTester.apply(hardwareProductOrderReceipt);
       logger.debug(">> hardwareServer(%s) order approval result(%s)", name, orderApproved);
 
       checkState(orderApproved, "order for server %s did not finish its transactions within %sms", name,
-              Long.toString(orderApprovedDelay));
+              Long.toString(orderApprovedAndServerIsDiscoveredDelay));
 
-      HardwareServer result = get(hardwareProductOrderReceipt.getOrderDetails().getHardware(), 0);
+      HardwareServer result = find(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
+              SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(newServer.getHostname()));
+
       logger.trace("<< hardwareServer(%s)", result.getId());
 
+      logger.debug(">> waiting for server(%s) transactions to start", result.getHostname());
+      boolean serverHasActiveTransactions = serverHasActiveTransactionsTester.apply(result);
+      logger.debug(">> server has active transactions result(%s)", serverHasActiveTransactions);
+
+      checkState(serverHasActiveTransactions, "order for server %s did not start its transactions within %sms", result,
+              Long.toString(activeTransactionsStartedDelay));
+
       logger.debug(">> awaiting transactions for hardwareServer(%s)", result.getHostname());
-      logger.info("Waiting for server " + result.getHostname() + " transactions to complete");
-      boolean noMoreTransactions = activeTransactionsTester.apply(result);
+      boolean noMoreTransactions = serverHasNoActiveTransactionsTester.apply(result);
       logger.debug(">> hardwareServer(%s) complete(%s)", result.getId(), noMoreTransactions);
 
       checkState(noMoreTransactions, "order for server %s did not finish its transactions within %sms", result,
               Long.toString(serverTransactionsDelay));
 
-      result = find(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
-              SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(result.getHostname()));
-
       checkNotNull(result, "result server is null");
 
-      logger.info("Waiting for server " + result.getHostname() + " login credentials");
       logger.debug(">> awaiting login details for hardwareServer(%s)", result.getId());
       boolean orderInSystem = loginDetailsTester.apply(result);
       logger.trace("<< hardwareServer(%s) complete(%s)", result.getId(), orderInSystem);
@@ -244,21 +250,31 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
    @Override
    public void destroyNode(String id) {
+
       HardwareServer server = getNode(id);
       if (server == null)
          return;
 
       if (server.getBillingItemId() == -1)
-         throw new IllegalStateException(String.format("no billing item for guest(%s) so we cannot cancel the order",
+         throw new IllegalStateException(String.format("no billing item for server(%s) so we cannot cancel the order",
                id));
 
       logger.debug(">> canceling service for guest(%s) billingItem(%s)", id, server.getBillingItemId());
       client.getHardwareServerClient().cancelService(server.getBillingItemId());
 
-      logger.debug(">> awaiting transactions for hardwareServer(%s)", server.getId());
-      boolean noMoreTransactions = activeTransactionsTester.apply(server);
+      logger.debug(">> waiting for server(%s) transactions to start", server.getHostname());
+      boolean serverHasActiveTransactions = serverHasActiveTransactionsTester.apply(server);
+      logger.debug(">> server has active transactions result(%s)", serverHasActiveTransactions);
+
+      checkState(serverHasActiveTransactions, "order for server %s did not start its transactions within %sms", server,
+              Long.toString(activeTransactionsStartedDelay));
+
+      logger.debug(">> awaiting transactions for hardwareServer(%s) to complete", server.getId());
+      boolean noMoreTransactions = serverHasNoActiveTransactionsTester.apply(server);
       logger.debug(">> hardwareServer(%s) complete(%s)", server.getId(), noMoreTransactions);
 
+      checkState(noMoreTransactions, "order for server %s did not finish its transactions within %sms", id,
+              Long.toString(serverTransactionsDelay));
    }
 
    @Override
@@ -302,7 +318,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
    public static class HardwareServerHasNoRunningTransactions implements Predicate<HardwareServer> {
 
-      private Transaction transaction;
+      private Map<HardwareServer, Transaction> lastTransactionPerServer = Maps.newConcurrentMap();
 
       private final SoftLayerBareMetalInstancesClient client;
 
@@ -316,56 +332,30 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       }
 
       @Override
-      public boolean apply(final @Nullable HardwareServer server) {
-
-         Optional<HardwareServer> actualServer = tryFind(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
-                 SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(server.getHostname()));
-
-         if (!actualServer.isPresent()) {
-            logger.debug(">> could not find server with name(%s)", server.getHostname());
-            return false;
-         }
-
-         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(actualServer.get().getId());
-
-         if (activeTransaction == null && transaction != null) {
-            // no current transaction, but a previous transaction was present.
-            // this means the guest is ready.
-            logger.info("Successfully completed all transactions for server (%s)",
-                    actualServer.get());
-            transaction = null;
-            return true;
-         }
-
-         if (activeTransaction == null) {
-            // no current transaction, and no previous transaction.
-            // this means the guest has not yet started its transaction process.
-            return false;
-         }
-
-         if (transaction == null || !transaction.getName().equals(activeTransaction.getName())) {
-            if (transaction != null) {
-               logger.info("Successfully completed transaction " + transaction.getName() + " in "
-                       + transaction.getElapsedSeconds() + " Seconds.");
+      public boolean apply(@Nullable HardwareServer server) {
+         Transaction activeTransaction = client.getHardwareServerClient().getActiveTransaction(server.getId());
+         if (activeTransaction != null) {
+            Transaction previous = lastTransactionPerServer.get(server);
+            if (previous != null && !previous.getName().equals(activeTransaction.getName())) {
+               logger.info("Successfully completed transaction %s in %s seconds.", previous.getName(), previous.getElapsedSeconds());
+               logger.info("Current transaction is %s. Average completion time is %s minutes.",
+                       activeTransaction.getName(), activeTransaction.getAverageDuration());
             }
-            // server has moved to a new transaction.
-            logger.info("Current transaction : " + activeTransaction.getName()
-                    + ". Average completion time is " + activeTransaction.getAverageDuration() + " Minutes.");
+
+            lastTransactionPerServer.put(server, activeTransaction);
+            return false;
          }
-
-         // update transaction data
-         transaction = activeTransaction;
-
-         return false;
+         lastTransactionPerServer.remove(server);
+         return true;
       }
    }
 
-   public static class HardwareProductOrderApproved implements Predicate<HardwareProductOrderReceipt> {
+   public static class HardwareProductOrderApprovedAndServerIsPresent implements Predicate<HardwareProductOrderReceipt> {
 
       private final SoftLayerBareMetalInstancesClient client;
 
       @Inject
-      public HardwareProductOrderApproved(SoftLayerBareMetalInstancesClient client) {
+      public HardwareProductOrderApprovedAndServerIsPresent(SoftLayerBareMetalInstancesClient client) {
          this.client = checkNotNull(client, "client was null");
       }
 
@@ -374,7 +364,37 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
 
          BillingOrder orderStatus = client.getAccountWithBareMetalInstancesClient()
                  .getBillingOrder(input.getOrderId());
-         return BillingOrder.Status.APPROVED.equals(orderStatus.getStatus());
+         boolean orderApproved = BillingOrder.Status.APPROVED.equals(orderStatus.getStatus());
+
+         boolean serverPresent = tryFind(client.getAccountWithBareMetalInstancesClient().listHardwareServers(),
+                 SoftLayerBareMetalInstancesComputeServiceAdapter
+                         .hostNamePredicate(input.getOrderDetails()
+                                 .getHardware().iterator().next().getHostname())).isPresent();
+
+         return orderApproved && serverPresent;
+      }
+   }
+
+   public static class HardwareServerStartedTransactions implements Predicate<HardwareServer> {
+
+      private final SoftLayerBareMetalInstancesClient client;
+
+      @Resource
+      @Named(SoftLayerConstants.TRANSACTION_LOGGER)
+      protected Logger logger = Logger.NULL;
+
+      @Inject
+      public HardwareServerStartedTransactions(SoftLayerBareMetalInstancesClient client) {
+         this.client = checkNotNull(client, "client was null");
+      }
+
+      @Override
+      public boolean apply(@Nullable HardwareServer server) {
+         boolean result = client.getHardwareServerClient().getActiveTransaction(server.getId()) != null;
+         if (!result) {
+            logger.debug(">> server(%s) has not started any transactions yet", server.getHostname());
+         }
+         return result;
       }
    }
 

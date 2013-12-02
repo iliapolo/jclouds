@@ -49,7 +49,13 @@ public interface HardwareSoftLayerConstants {
    /**
     * number of milliseconds to wait for an order to be empty of transactions.
     */
-   public static final String PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_DELAY = "jclouds.softlayer.baremetal.active-transactions-delay";
+   public static final String PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_ENDED_DELAY = "jclouds.softlayer.baremetal.active-transactions-ended-delay";
+
+   /**
+    * number of milliseconds to wait for an order to start its transactions.
+    */
+   public static final String PROPERTY_SOFTLAYER_BARE_METAL_INSTANCES_ACTIVE_TRANSACTIONS_STARTED_DELAY = "jclouds.softlayer.baremetal.active-transactions-started-delay";
+
 
    /**
     * Order logger for reporting order statuses.
