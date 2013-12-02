@@ -120,6 +120,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
       HardwareProductOrderReceipt hardwareProductOrderReceipt = client.getHardwareServerClient().orderHardwareServer(order);
 
       logger.debug(">> awaiting order approval for hardwareServer(%s)", name);
+      logger.info("Waiting for server(%s) order approval", name);
       boolean orderApproved = orderApprovedAndServerIsDiscoveredTester.apply(hardwareProductOrderReceipt);
       logger.debug(">> hardwareServer(%s) order approval result(%s)", name, orderApproved);
 
@@ -130,6 +131,8 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
               SoftLayerBareMetalInstancesComputeServiceAdapter.hostNamePredicate(newServer.getHostname()));
 
       logger.trace("<< hardwareServer(%s)", result.getId());
+
+      logger.info("Waiting for server(%s) transactions to complete", name);
 
       logger.debug(">> waiting for server(%s) transactions to start", result.getHostname());
       boolean serverHasActiveTransactions = serverHasActiveTransactionsTester.apply(result);
