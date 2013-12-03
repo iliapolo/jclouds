@@ -334,6 +334,7 @@ public class SoftLayerComputeServiceAdapter implements
             lastTransactionPerGuest.put(guest, activeTransaction);
             return false;
          }
+         logger.info("Successfully completed all transactions for host %s", guest.getHostname());
          lastTransactionPerGuest.remove(guest);
          return true;
       }

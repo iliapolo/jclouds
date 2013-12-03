@@ -348,6 +348,7 @@ public class SoftLayerBareMetalInstancesComputeServiceAdapter implements
             lastTransactionPerServer.put(server, activeTransaction);
             return false;
          }
+         logger.info("Successfully completed all transactions for server %s", server.getHostname());
          lastTransactionPerServer.remove(server);
          return true;
       }
