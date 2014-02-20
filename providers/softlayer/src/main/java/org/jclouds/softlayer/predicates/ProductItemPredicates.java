@@ -16,14 +16,13 @@
  */
 package org.jclouds.softlayer.predicates;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import java.util.regex.Pattern;
-
+import com.google.common.base.Predicate;
 import org.jclouds.softlayer.domain.ProductItem;
 import org.jclouds.softlayer.domain.ProductItemCategory;
 
-import com.google.common.base.Predicate;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class ProductItemPredicates {
 
@@ -150,5 +149,29 @@ public class ProductItemPredicates {
             return "regex(" + regex + ")";
          }
       };
+   }
+
+   /**
+    * Tests if the ProductItem's first price id matches the supplied price id.
+    *
+    * @param firstPriceId .
+    *
+    * @return true if it does, otherwise false.
+    */
+   public static Predicate<ProductItem> firstPriceId(final int firstPriceId) {
+       checkNotNull(firstPriceId, "firstPriceId cannot be null");
+
+       return new Predicate<ProductItem>() {
+           @Override
+           public boolean apply(ProductItem productItem) {
+               checkNotNull(productItem, "productItem cannot ne null");
+               return productItem.getPrices().iterator().next().getId() == firstPriceId;
+           }
+
+           @Override
+           public String toString() {
+               return "firstPriceId(" + firstPriceId + ")";
+           }
+       };
    }
 }

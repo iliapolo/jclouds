@@ -61,8 +61,8 @@ public class SoftLayerProviderMetadata extends BaseProviderMetadata {
       properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX, "[0-9]+ x ([0-9.]+) GHz Core[s]?");
       // SAN or LOCAL
       properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE, "LOCAL");
-      // 10, 100, 1000
-      properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED, "10");
+      // 272 --> 10 Mbps Private & Public Network
+      properties.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED_ID, "272");
       ImmutableSet.Builder<String> prices = ImmutableSet.builder();
       prices.add("21"); // 1 IP Address
       prices.add("55"); // Host Ping: categoryCode: monitoring, notification

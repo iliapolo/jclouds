@@ -34,9 +34,9 @@ public interface SoftLayerConstants {
    public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX = "jclouds.softlayer.virtualguest.cpu-regex";
 
    /**
-    * Uplink port speed for new guests (10, 100, 1000)
+    * Uplink port speed id
     */
-   public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED = "jclouds.softlayer.virtualguest.port-speed";
+   public static final String PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED_ID = "jclouds.softlayer.virtualguest.port-speed-id";
 
    /**
     * Default Boot Disk type (SAN, LOCAL)

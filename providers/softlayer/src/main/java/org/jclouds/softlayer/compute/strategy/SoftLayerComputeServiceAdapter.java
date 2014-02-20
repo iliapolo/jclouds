@@ -74,7 +74,7 @@ public class SoftLayerComputeServiceAdapter implements
    private final long transactionsEndedDelay;
    private final long transactionsStartedDelay;
    private final Pattern disk0Type;
-   private final float portSpeed;
+   private final int portSpeedPriceId;
    private final Iterable<ProductItemPrice> prices;
 
    @Inject
@@ -85,7 +85,7 @@ public class SoftLayerComputeServiceAdapter implements
          @Memoized Supplier<ProductPackage> productPackageSupplier, Iterable<ProductItemPrice> prices,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX) String cpuRegex,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE) String disk0Type,
-         @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED) float portSpeed,
+         @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED_ID) int portSpeedPriceId,
          @Named(PROPERTY_SOFTLAYER_VIRTUALGUEST_LOGIN_DETAILS_DELAY) long guestLoginDelay,
          @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_ENDED_DELAY) long transactionsEndedDelay,
          @Named(PROPERTY_SOFTLAYER_ACTIVE_TRANSACTIONS_STARTED_DELAY) long transactionsStartedDelay) {
@@ -98,8 +98,7 @@ public class SoftLayerComputeServiceAdapter implements
       this.loginDetailsTester = retry(virtualGuestHasLoginDetailsPresent, guestLoginDelay);
       this.cpuPattern = Pattern.compile(checkNotNull(cpuRegex, "cpuRegex"));
       this.prices = checkNotNull(prices, "prices");
-      this.portSpeed = portSpeed;
-      checkArgument(portSpeed > 0, "portSpeed must be greater than zero, often 10, 100, 1000, 10000");
+      this.portSpeedPriceId = portSpeedPriceId;
       this.disk0Type = Pattern.compile(".*" + checkNotNull(disk0Type, "disk0Type") + ".*");
       this.guestHasNoActiveTransactionsTester = retry(guestHasNoActiveTransactionsTester, transactionsEndedDelay, 100, 1000);
       this.guestHasActiveTransactionsTester = retry(guestHasActiveTransactionsTester, transactionsStartedDelay, 100, 1000);
@@ -165,9 +164,12 @@ public class SoftLayerComputeServiceAdapter implements
          int id = Integer.parseInt(hardwareId);
          result.add(ProductItemPrice.builder().id(id).build());
       }
+
       ProductItem uplinkItem = find(productPackageSupplier.get().getItems(),
-            and(capacity(portSpeed), categoryCode("port_speed")));
-      result.add(get(uplinkItem.getPrices(), 0));
+              and(firstPriceId(portSpeedPriceId), categoryCode("port_speed")));
+
+      ProductItemPrice element = get(uplinkItem.getPrices(), 0);
+      result.add(element);
       result.addAll(prices);
       return result.build();
    }
@@ -195,13 +197,13 @@ public class SoftLayerComputeServiceAdapter implements
    // cheat until we have a getProductItem command
    @Override
    public ProductItem getImage(final String id) {
-      return find(listImages(), new Predicate<ProductItem>(){
+      return find(listImages(), new Predicate<ProductItem>() {
 
-         @Override
-         public boolean apply(ProductItem input) {
-            return ProductItemToImage.imageId().apply(input).equals(id);
-         }
-         
+          @Override
+          public boolean apply(ProductItem input) {
+              return ProductItemToImage.imageId().apply(input).equals(id);
+          }
+
       }, null);
    }
    
