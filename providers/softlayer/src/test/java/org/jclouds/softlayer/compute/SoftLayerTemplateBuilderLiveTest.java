@@ -36,7 +36,6 @@ import static org.jclouds.compute.util.ComputeServiceUtils.getCores;
 import static org.jclouds.compute.util.ComputeServiceUtils.getSpace;
 import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_CPU_REGEX;
 import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_DISK0_TYPE;
-import static org.jclouds.softlayer.reference.SoftLayerConstants.PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED;
 import static org.testng.Assert.assertEquals;
 
 /**
@@ -93,42 +92,6 @@ public class SoftLayerTemplateBuilderLiveTest extends BaseTemplateBuilderLiveTes
       assertEquals(defaultTemplate.getHardware().getVolumes().get(0).getType(), Volume.Type.LOCAL);
       // test that we bound the correct templateoptions in guice
       assertEquals(defaultTemplate.getOptions().getClass(), SoftLayerTemplateOptions.class);
-   }
-
-   @Test
-   public void testTemplateBuilderFindsGigabitUplink() throws IOException {
-      ComputeServiceContext context = null;
-      try {
-         Properties overrides = setupProperties();
-         overrides.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED, "1000");
-
-         context = createView(overrides, setupModules());
-
-         // TODO add something to the template about port speed?
-         context.getComputeService().templateBuilder().build();
-
-      } finally {
-         if (context != null)
-            context.close();
-      }
-   }
-
-   @Test
-   public void testTemplateBuilderFindsMegabitUplink() throws IOException {
-      ComputeServiceContext context = null;
-      try {
-         Properties overrides = setupProperties();
-         overrides.setProperty(PROPERTY_SOFTLAYER_VIRTUALGUEST_PORT_SPEED, "100");
-
-         context = createView(overrides, setupModules());
-
-         // TODO add something to the template about port speed?
-         context.getComputeService().templateBuilder().build();
-
-      } finally {
-         if (context != null)
-            context.close();
-      }
    }
 
    @Test
